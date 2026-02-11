@@ -83,11 +83,10 @@ export default function SignUpPage() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <Card className="w-full max-w-md border-0 shadow-none lg:border lg:shadow-sm">
           <CardHeader className="space-y-1">
-            <div className="lg:hidden flex items-center gap-2 mb-4">
-              <img src="/logo.png" alt="Workflow CRM" className="h-12 w-auto object-contain" />
-              <span className="font-bold text-lg">Workflow CRM</span>
-            </div>
-            <CardTitle className="text-2xl font-bold">Créer un compte</CardTitle>
+            <CardTitle className="flex justify-center mb-2">
+              <img src="/logo.png" alt="Workflow CRM" className="h-16 w-auto object-contain md:hidden" />
+              <span className="hidden md:block text-2xl font-bold text-primary">Créer un compte</span>
+            </CardTitle>
             <CardDescription>
               Remplissez le formulaire pour commencer votre essai gratuit
             </CardDescription>

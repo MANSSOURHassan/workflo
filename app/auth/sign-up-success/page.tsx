@@ -13,11 +13,10 @@ export default function SignUpSuccessPage() {
               <CheckCircle2 className="h-8 w-8 text-primary" />
             </div>
           </div>
-          <div className="flex items-center justify-center gap-2">
-            <img src="/logo.png" alt="Workflow CRM" className="h-10 w-auto object-contain" />
-            <span className="font-bold">Workflow CRM</span>
-          </div>
-          <CardTitle className="text-2xl font-bold">Vérifiez votre email</CardTitle>
+          <CardTitle className="flex justify-center">
+            <img src="/logo.png" alt="Workflow CRM" className="h-16 w-auto object-contain md:hidden" />
+            <span className="hidden md:block text-2xl font-bold text-primary">Vérifiez votre email</span>
+          </CardTitle>
           <CardDescription className="text-base">
             Nous avons envoyé un lien de confirmation à votre adresse email.
           </CardDescription>
