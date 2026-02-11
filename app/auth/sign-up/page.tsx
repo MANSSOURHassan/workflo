@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { signUp } from '@/lib/actions/auth'
-import { Loader2, Mail, Lock, User, Building2, TrendingUp, Check } from 'lucide-react'
+import { signUp, signInWithGoogle } from '@/lib/actions/auth'
+import { Loader2, Mail, Lock, User, Building2, TrendingUp, Check, Globe } from 'lucide-react'
 
 export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -204,6 +204,27 @@ export default function SignUpPage() {
                 ) : (
                   'Créer mon compte'
                 )}
+              </Button>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">
+                    Ou continuer avec
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => signInWithGoogle()}
+              >
+                <Globe className="mr-2 h-4 w-4" />
+                S&apos;inscrire avec Google
               </Button>
               <p className="text-sm text-center text-muted-foreground">
                 Déjà un compte ?{' '}

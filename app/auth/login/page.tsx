@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { signIn } from '@/lib/actions/auth'
+import { signIn, signInWithGoogle } from '@/lib/actions/auth'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, Mail, Lock, TrendingUp } from 'lucide-react'
+import { Loader2, Mail, Lock, TrendingUp, Globe } from 'lucide-react'
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -142,6 +142,27 @@ export default function LoginPage() {
                 ) : (
                   'Se connecter'
                 )}
+              </Button>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">
+                    Ou continuer avec
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => signInWithGoogle()}
+              >
+                <Globe className="mr-2 h-4 w-4" />
+                Se connecter avec Google
               </Button>
               <p className="text-sm text-center text-muted-foreground">
                 Pas encore de compte ?{' '}
