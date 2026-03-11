@@ -8,45 +8,62 @@ import { RecentActivity } from '@/components/dashboard/recent-activity'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AIAdvice } from '@/components/dashboard/ai-advice'
 
-export default async function DashboardPage() {
-  const [statsResult, prospectsChartResult, dealsChartResult, topProspectsResult, activityResult] = await Promise.all([
-    getDashboardStats(),
-    getProspectsByStatusChart(),
-    getDealsValueChart(),
-    getTopProspects(),
-    getRecentActivity()
-  ])
-
+export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <AIAdvice />
 
       {/* Stats Overview */}
       <Suspense fallback={<StatsCardsSkeleton />}>
-        <StatsCards stats={statsResult.data} />
+        <StatsWrapper />
       </Suspense>
 
       {/* Charts Row */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Suspense fallback={<ChartSkeleton />}>
-          <ProspectsChart data={prospectsChartResult.data || []} />
+          <ProspectsChartWrapper />
         </Suspense>
         <Suspense fallback={<ChartSkeleton />}>
-          <DealsChart data={dealsChartResult.data || []} />
+          <DealsChartWrapper />
         </Suspense>
       </div>
 
       {/* Bottom Row */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Suspense fallback={<ListSkeleton />}>
-          <TopProspects prospects={topProspectsResult.data || []} />
+          <TopProspectsWrapper />
         </Suspense>
         <Suspense fallback={<ListSkeleton />}>
-          <RecentActivity activities={activityResult.data || []} />
+          <RecentActivityWrapper />
         </Suspense>
       </div>
     </div>
   )
+}
+
+async function StatsWrapper() {
+  const result = await getDashboardStats()
+  return <StatsCards stats={result.data} />
+}
+
+async function ProspectsChartWrapper() {
+  const result = await getProspectsByStatusChart()
+  return <ProspectsChart data={result.data || []} />
+}
+
+async function DealsChartWrapper() {
+  const result = await getDealsValueChart()
+  return <DealsChart data={result.data || []} />
+}
+
+async function TopProspectsWrapper() {
+  const result = await getTopProspects()
+  return <TopProspects prospects={result.data || []} />
+}
+
+async function RecentActivityWrapper() {
+  const result = await getRecentActivity()
+  return <RecentActivity activities={result.data || []} />
 }
 
 function StatsCardsSkeleton() {

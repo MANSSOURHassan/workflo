@@ -17,7 +17,7 @@ export async function getPipelines() {
     .from('pipelines')
     .select(`
       *,
-      pipeline_stages (
+      stages:pipeline_stages (
         id,
         name,
         position,
@@ -30,7 +30,9 @@ export async function getPipelines() {
 
   if (data) {
     data.forEach((pipeline: any) => {
-      pipeline.stages?.sort((a: any, b: any) => a.position - b.position)
+      if (pipeline.stages) {
+        pipeline.stages.sort((a: any, b: any) => a.position - b.position)
+      }
     })
   }
 
@@ -50,7 +52,7 @@ export async function getDefaultPipeline() {
     .from('pipelines')
     .select(`
       *,
-      pipeline_stages (
+      stages:pipeline_stages (
         id,
         name,
         position,
@@ -64,7 +66,35 @@ export async function getDefaultPipeline() {
 
   let data = pipelines?.[0] || null
 
-  // If no default pipeline, create one
+  // If no default pipeline, find ANY pipeline before creating one
+  if (!data) {
+    const { data: anyPipeline } = await supabase
+      .from('pipelines')
+      .select(`
+        *,
+        stages:pipeline_stages (
+          id,
+          name,
+          position,
+          color,
+          probability
+        )
+      `)
+      .eq('user_id', user.id)
+      .limit(1)
+
+    if (anyPipeline && anyPipeline.length > 0) {
+      data = anyPipeline[0]
+
+      // Optionally Make it default if it wasn't
+      await supabase
+        .from('pipelines')
+        .update({ is_default: true })
+        .eq('id', data.id)
+    }
+  }
+
+  // If STILL no pipeline, create a fresh one
   if (!data) {
     const { data: newPipeline, error: createError } = await supabase
       .from('pipelines')
@@ -226,6 +256,23 @@ export async function createPipeline(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  // Auto-generate default stages for the new pipeline to avoid empty Kanban
+  const defaultStages = [
+    { name: 'Prospection', position: 0, color: '#94A3B8', probability: 10 },
+    { name: 'Qualification', position: 1, color: '#6366F1', probability: 25 },
+    { name: 'Proposition', position: 2, color: '#22D3EE', probability: 50 },
+    { name: 'Négociation', position: 3, color: '#FBBF24', probability: 75 },
+    { name: 'Gagné', position: 4, color: '#22C55E', probability: 100 },
+    { name: 'Perdu', position: 5, color: '#EF4444', probability: 0 },
+  ]
+
+  await supabase
+    .from('pipeline_stages')
+    .insert(defaultStages.map(stage => ({
+      ...stage,
+      pipeline_id: data.id
+    })))
 
   revalidateTag('pipelines', 'max')
   return { data }

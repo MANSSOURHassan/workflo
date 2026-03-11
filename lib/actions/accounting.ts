@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidateTag } from 'next/cache'
-import { Supplier, Expense, Invoice, Quote } from '@/lib/types/database'
+import { Supplier, Expense, Invoice, Quote, UrssafDeclaration } from '@/lib/types/database'
 
 // --- SUPPLIERS ---
 
@@ -35,6 +35,40 @@ export async function createSupplier(supplier: Partial<Supplier>) {
 
     if (!error) revalidateTag('accounting', 'max')
     return { data: data as Supplier, error: error?.message }
+}
+
+export async function updateSupplier(id: string, supplier: Partial<Supplier>) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Non autorisé' }
+
+    const { data, error } = await supabase
+        .from('suppliers')
+        .update({ ...supplier, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+
+    if (!error) revalidateTag('accounting', 'max')
+    return { data: data as Supplier, error: error?.message }
+}
+
+export async function deleteSupplier(id: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Non autorisé' }
+
+    const { error } = await supabase
+        .from('suppliers')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id)
+
+    if (!error) revalidateTag('accounting', 'max')
+    return { error: error?.message }
 }
 
 // --- EXPENSES ---
@@ -77,6 +111,58 @@ export async function createExpense(expense: Partial<Expense>) {
         revalidateTag('accounting', 'max')
     }
     return { data: data as Expense, error: error?.message }
+}
+
+export async function updateExpense(id: string, expense: Partial<Expense>) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Non autorisé' }
+
+    const { data, error } = await supabase
+        .from('expenses')
+        .update({ ...expense, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+
+    if (!error) {
+        await supabase.from('audit_logs').insert({
+            user_id: user.id,
+            action_type: 'expense_updated',
+            entity_type: 'expense',
+            entity_id: id,
+            description: `Dépense mise à jour`
+        })
+        revalidateTag('accounting', 'max')
+    }
+    return { data: data as Expense, error: error?.message }
+}
+
+export async function deleteExpense(id: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Non autorisé' }
+
+    const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id)
+
+    if (!error) {
+        await supabase.from('audit_logs').insert({
+            user_id: user.id,
+            action_type: 'expense_deleted',
+            entity_type: 'expense',
+            entity_id: id,
+            description: `Dépense supprimée`
+        })
+        revalidateTag('accounting', 'max')
+    }
+    return { error: error?.message }
 }
 
 // --- INVOICES ---
@@ -382,3 +468,69 @@ export async function getProFinancialSummary() {
         }
     }
 }
+
+// --- URSSAF DECLARATIONS ---
+
+export async function getUrssafDeclarations() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { data: [], error: 'Non autorisé' }
+
+    const { data, error } = await supabase
+        .from('urssaf_declarations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('period_start', { ascending: false })
+
+    return { data: data as UrssafDeclaration[], error: error?.message }
+}
+
+export async function createUrssafDeclaration(declaration: Partial<UrssafDeclaration>) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Non autorisé' }
+
+    const { data, error } = await supabase
+        .from('urssaf_declarations')
+        .insert({ ...declaration, user_id: user.id })
+        .select()
+        .single()
+
+    if (!error) revalidateTag('accounting', 'max')
+    return { data: data as UrssafDeclaration, error: error?.message }
+}
+
+export async function updateUrssafStatus(id: string, status: UrssafDeclaration['status']) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Non autorisé' }
+
+    const { error } = await supabase
+        .from('urssaf_declarations')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', user.id)
+
+    if (!error) revalidateTag('accounting', 'max')
+    return { error: error?.message }
+}
+
+export async function deleteUrssafDeclaration(id: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Non autorisé' }
+
+    const { error } = await supabase
+        .from('urssaf_declarations')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id)
+
+    if (!error) revalidateTag('accounting', 'max')
+    return { error: error?.message }
+}
+

@@ -43,7 +43,9 @@ export default function ChatbotPage() {
     botName: 'Assistant Workflow CRM',
     welcomeMessage: 'Bonjour ! Comment puis-je vous aider ?',
     primaryColor: '#4F46E5',
-    collectEmails: true
+    collectEmails: true,
+    theme: 'light', // 'light', 'dark', or 'auto'
+    visualStyle: 'modern' // 'modern' or 'classic'
   })
 
   // Simulated live preview messages
@@ -336,8 +338,47 @@ export default function ChatbotPage() {
                   <div className="space-y-4">
                     <Label className="text-xs uppercase tracking-widest text-muted-foreground">Style visuel</Label>
                     <div className="grid grid-cols-2 gap-3">
-                      <Button variant="outline" className="rounded-xl border-primary/10">Moderne / Arrondi</Button>
-                      <Button variant="ghost" className="rounded-xl opacity-50">Classique / Carré</Button>
+                      <Button
+                        variant={settings.visualStyle === 'modern' ? 'default' : 'outline'}
+                        className={`rounded-xl ${settings.visualStyle === 'modern' ? 'bg-primary text-primary-foreground' : 'border-primary/10'}`}
+                        onClick={() => setSettings({ ...settings, visualStyle: 'modern' })}
+                      >
+                        Moderne / Arrondi
+                      </Button>
+                      <Button
+                        variant={settings.visualStyle === 'classic' ? 'default' : 'outline'}
+                        className={`rounded-xl ${settings.visualStyle === 'classic' ? 'bg-primary text-primary-foreground' : 'border-primary/10'}`}
+                        onClick={() => setSettings({ ...settings, visualStyle: 'classic' })}
+                      >
+                        Classique / Carré
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-xs uppercase tracking-widest text-muted-foreground">Thème du Chatbot</Label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <Button
+                        variant={settings.theme === 'light' ? 'default' : 'outline'}
+                        className={`rounded-xl ${settings.theme === 'light' ? 'bg-primary text-primary-foreground' : 'border-primary/10'}`}
+                        onClick={() => setSettings({ ...settings, theme: 'light' })}
+                      >
+                        Clair
+                      </Button>
+                      <Button
+                        variant={settings.theme === 'dark' ? 'default' : 'outline'}
+                        className={`rounded-xl ${settings.theme === 'dark' ? 'bg-primary text-primary-foreground' : 'border-primary/10'}`}
+                        onClick={() => setSettings({ ...settings, theme: 'dark' })}
+                      >
+                        Sombre
+                      </Button>
+                      <Button
+                        variant={settings.theme === 'auto' ? 'default' : 'outline'}
+                        className={`rounded-xl ${settings.theme === 'auto' ? 'bg-primary text-primary-foreground' : 'border-primary/10'}`}
+                        onClick={() => setSettings({ ...settings, theme: 'auto' })}
+                      >
+                        Automatique
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -359,11 +400,11 @@ export default function ChatbotPage() {
                 </div>
 
                 {/* Bot UI */}
-                <div className="absolute right-6 bottom-6 w-80 h-[450px] bg-background rounded-2xl shadow-2xl border border-border/50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-8 duration-700">
+                <div className={`absolute right-6 bottom-6 w-80 h-[450px] shadow-2xl border border-border/50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-8 duration-700 ${settings.visualStyle === 'modern' ? 'rounded-2xl' : 'rounded-sm'} ${settings.theme === 'dark' ? 'bg-slate-900 text-white border-slate-700' : settings.theme === 'light' ? 'bg-white text-slate-900 border-slate-200' : 'bg-background'}`}>
                   {/* Bot Header */}
-                  <div className="p-4 text-white flex items-center justify-between" style={{ backgroundColor: settings.primaryColor }}>
+                  <div className={`p-4 text-white flex items-center justify-between ${settings.visualStyle === 'modern' ? '' : 'border-b border-black/10'}`} style={{ backgroundColor: settings.primaryColor }}>
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner">
+                      <div className={`h-10 w-10 bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner ${settings.visualStyle === 'modern' ? 'rounded-xl' : 'rounded-sm'}`}>
                         <Bot className="h-6 w-6" />
                       </div>
                       <div>
@@ -379,14 +420,14 @@ export default function ChatbotPage() {
                   {/* Bot Messages */}
                   <div
                     ref={previewScrollRef}
-                    className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50 dark:bg-slate-950/50"
+                    className={`flex-1 p-4 overflow-y-auto space-y-4 ${settings.theme === 'dark' ? 'bg-slate-950/80' : settings.theme === 'light' ? 'bg-slate-50' : 'bg-slate-50 dark:bg-slate-950/50'}`}
                   >
                     {previewMessages.map((msg) => (
                       <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
                         <div
                           className={`max-w-[80%] p-3 text-xs shadow-sm ${msg.role === 'user'
-                            ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-none'
-                            : 'bg-white dark:bg-slate-800 border rounded-2xl rounded-tl-none'
+                            ? `bg-primary text-primary-foreground ${settings.visualStyle === 'modern' ? 'rounded-2xl rounded-tr-none' : 'rounded-sm rounded-tr-none'}`
+                            : `${settings.theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-100' : settings.theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-white dark:bg-slate-800 border text-foreground'} ${settings.visualStyle === 'modern' ? 'rounded-2xl rounded-tl-none' : 'rounded-sm rounded-tl-none'}`
                             }`}
                         >
                           {msg.content}
@@ -396,19 +437,19 @@ export default function ChatbotPage() {
                   </div>
 
                   {/* Bot Input */}
-                  <div className="p-3 border-t bg-background">
+                  <div className={`p-3 border-t ${settings.theme === 'dark' ? 'bg-slate-900 border-slate-800' : settings.theme === 'light' ? 'bg-white border-slate-200' : 'bg-background'}`}>
                     <div className="flex gap-2">
                       <Input
                         placeholder="Tapez un message..."
                         value={previewInput}
                         onChange={(e) => setPreviewInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handlePreviewSend()}
-                        className="text-xs h-9 rounded-xl border-none bg-muted focus-visible:ring-1 focus-visible:ring-primary/30"
+                        className={`text-xs h-9 border-none focus-visible:ring-1 focus-visible:ring-primary/30 ${settings.visualStyle === 'modern' ? 'rounded-xl' : 'rounded-sm'} ${settings.theme === 'dark' ? 'bg-slate-800 text-white placeholder:text-slate-400' : settings.theme === 'light' ? 'bg-slate-100 text-slate-900 placeholder:text-slate-500' : 'bg-muted'}`}
                       />
                       <Button
                         size="icon"
                         onClick={handlePreviewSend}
-                        className="h-9 w-9 rounded-xl shrink-0"
+                        className={`h-9 w-9 shrink-0 ${settings.visualStyle === 'modern' ? 'rounded-xl' : 'rounded-sm'}`}
                         style={{ backgroundColor: settings.primaryColor }}
                       >
                         <Send className="h-4 w-4" />

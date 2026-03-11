@@ -177,7 +177,7 @@ export async function getRecentActivity(limit: number = 10) {
   // Merge and sort
   const activities = (activitiesResult.data || []).map(a => ({
     id: a.id,
-    type: 'activity',
+    type: 'activity' as const,
     action: a.type,
     title: a.title,
     description: a.description,
@@ -187,7 +187,7 @@ export async function getRecentActivity(limit: number = 10) {
 
   const audits = (auditResult.data || []).map(a => ({
     id: a.id,
-    type: 'audit',
+    type: 'audit' as const,
     action: a.action_type,
     title: a.description,
     description: a.team_member ? `Par ${a.team_member.first_name}` : 'Système',

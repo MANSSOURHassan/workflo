@@ -25,6 +25,7 @@ import {
   ChevronDown
 } from 'lucide-react'
 import { GlobalSearch } from './global-search'
+import { ModeToggle } from '@/components/mode-toggle'
 
 interface DashboardHeaderProps {
   user: User
@@ -63,6 +64,9 @@ export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
           <GlobalSearch />
         </div>
 
+        {/* Theme Toggle */}
+        <ModeToggle />
+
         {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -100,8 +104,10 @@ export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
               </DropdownMenuItem>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="justify-center text-primary">
-              Voir toutes les notifications
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/activities" className="w-full justify-center text-primary cursor-pointer">
+                Voir toutes les notifications
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

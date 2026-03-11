@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowRight, BarChart3, Users, Zap, Shield, Target, Mail, TrendingUp, CheckCircle } from "lucide-react"
+import { ArrowRight, BarChart3, Users, Zap, Shield, Target, Mail, TrendingUp, CheckCircle, FileText, Calculator, Receipt } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -33,6 +33,21 @@ const features = [
     title: "Conforme RGPD",
     description: "Respectez la reglementation europeenne avec nos outils de gestion des consentements et d'export de donnees.",
     icon: Shield,
+  },
+  {
+    title: "Déclaration URSSAF",
+    description: "Déclarez vos revenus à l'URSSAF en quelques clics et suivez vos cotisations.",
+    icon: FileText,
+  },
+  {
+    title: "Comptabilité & Bilan",
+    description: "Gérez votre activité comptable et obtenez votre bilan sans avoir recours à un expert-comptable.",
+    icon: Calculator,
+  },
+  {
+    title: "Factures & Devis",
+    description: "Créez et envoyez des factures et devis professionnels à vos clients en un instant.",
+    icon: Receipt,
   },
 ]
 
@@ -86,7 +101,7 @@ export default function HomePage() {
               </h1>
               <p className="mt-6 text-lg text-muted-foreground text-pretty">
                 Workflow CRM est la solution SaaS polyvalente conçue pour les entreprises de tous secteurs d'activité.
-                Centralisez vos contacts, automatisez vos processus et accélérez votre croissance avec une plateforme adaptable.
+                Avec cette application, vous pourrez déclarer l'URSSAF, gérer votre activité comptable, avoir votre bilan comptable sans avoir à demander à un expert-comptable, faire des factures et devis à vos clients en un instant sans perdre de temps dans d'autres outils, gérer votre chiffre d'affaires et analyser votre activité.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Button size="lg" asChild>
@@ -279,7 +294,8 @@ export default function HomePage() {
                   <CardTitle className="text-foreground">Enterprise</CardTitle>
                   <CardDescription>Pour les grandes organisations</CardDescription>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-foreground">Sur devis</span>
+                    <span className="text-4xl font-bold text-foreground">149EUR</span>
+                    <span className="text-muted-foreground">/mois</span>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -306,7 +322,7 @@ export default function HomePage() {
                     </li>
                   </ul>
                   <Button className="w-full mt-6 bg-transparent" variant="outline" asChild>
-                    <Link href="/auth/sign-up">Nous contacter</Link>
+                    <Link href="/auth/sign-up">Choisir Enterprise</Link>
                   </Button>
                 </CardContent>
               </Card>

@@ -5,12 +5,14 @@ import { startOfMonth, subMonths, format, startOfWeek, addDays, endOfDay, startO
 import { fr } from 'date-fns/locale'
 
 export type AnalyticsData = {
-    revenueData: { name: string; revenue: number; target: number; deals: number }[]
+    revenueData: { name: string; revenue: number; costs: number; target: number; deals: number }[]
     pipelineData: { name: string; value: number; color: string }[]
     activityData: { name: string; calls: number; emails: number; meetings: number }[]
     kpis: {
         revenue: number
         revenueChange: number
+        costs: number
+        profit: number
         prospects: number
         prospectsChange: number
         conversionRate: number
@@ -26,28 +28,39 @@ export async function getAnalyticsData(): Promise<{ data?: AnalyticsData; error?
 
     if (!user) return { error: 'Non autorisé' }
 
-    // 1. Revenue Data (Last 6 months)
+    // 1. Revenue & Costs Data (Last 6 months)
     const revenueData = []
     for (let i = 5; i >= 0; i--) {
         const date = subMonths(new Date(), i)
         const monthStart = startOfMonth(date).toISOString()
         const monthEnd = endOfDay(addDays(startOfMonth(subMonths(date, -1)), -1)).toISOString()
 
-        // We fetch won deals for this month
-        const { data: monthlyDeals } = await supabase
-            .from('deals')
-            .select('value, status')
+        // Fetch paid invoices for revenue
+        const { data: monthlyInvoices } = await supabase
+            .from('invoices')
+            .select('total')
             .eq('user_id', user.id)
-            .eq('status', 'won')
-            .gte('actual_close_date', monthStart)
-            .lte('actual_close_date', monthEnd)
+            .eq('status', 'paid')
+            .gte('issue_date', monthStart)
+            .lte('issue_date', monthEnd)
 
-        const revenue = monthlyDeals?.reduce((sum, d) => sum + (Number(d.value) || 0), 0) || 0
-        const count = monthlyDeals?.length || 0
+        // Fetch paid expenses for costs
+        const { data: monthlyExpenses } = await supabase
+            .from('expenses')
+            .select('total_amount')
+            .eq('user_id', user.id)
+            .eq('status', 'paid')
+            .gte('issue_date', monthStart)
+            .lte('issue_date', monthEnd)
+
+        const revenue = monthlyInvoices?.reduce((sum, d) => sum + (Number(d.total) || 0), 0) || 0
+        const costs = monthlyExpenses?.reduce((sum, d) => sum + (Number(d.total_amount) || 0), 0) || 0
+        const count = monthlyInvoices?.length || 0
 
         revenueData.push({
             name: format(date, 'MMM', { locale: fr }),
             revenue,
+            costs,
             target: 50000, // Hardcoded target for now, or fetch from settings
             deals: count
         })
@@ -102,28 +115,36 @@ export async function getAnalyticsData(): Promise<{ data?: AnalyticsData; error?
     }
 
     // 4. KPIs
-    // Current Month Revenue
+    // Current Month Revenue and Costs
     const currentMonthStart = startOfMonth(new Date()).toISOString()
-    const { data: currentMonthDeals } = await supabase
-        .from('deals')
-        .select('value')
+    const { data: currentMonthInvoices } = await supabase
+        .from('invoices')
+        .select('total')
         .eq('user_id', user.id)
-        .eq('status', 'won')
-        .gte('actual_close_date', currentMonthStart)
+        .eq('status', 'paid')
+        .gte('issue_date', currentMonthStart)
 
-    const currentRevenue = currentMonthDeals?.reduce((sum, d) => sum + (Number(d.value) || 0), 0) || 0
+    const { data: currentMonthExpenses } = await supabase
+        .from('expenses')
+        .select('total_amount')
+        .eq('user_id', user.id)
+        .eq('status', 'paid')
+        .gte('issue_date', currentMonthStart)
+
+    const currentRevenue = currentMonthInvoices?.reduce((sum, d) => sum + (Number(d.total) || 0), 0) || 0
+    const currentCosts = currentMonthExpenses?.reduce((sum, d) => sum + (Number(d.total_amount) || 0), 0) || 0
 
     // Last Month Revenue (for change)
     const lastMonthStart = startOfMonth(subMonths(new Date(), 1)).toISOString()
     const lastMonthEnd = endOfDay(subDays(startOfMonth(new Date()), 1)).toISOString()
-    const { data: lastMonthDeals } = await supabase
-        .from('deals')
-        .select('value')
+    const { data: lastMonthInvoices } = await supabase
+        .from('invoices')
+        .select('total')
         .eq('user_id', user.id)
-        .eq('status', 'won')
-        .gte('actual_close_date', lastMonthStart)
-        .lte('actual_close_date', lastMonthEnd)
-    const lastRevenue = lastMonthDeals?.reduce((sum, d) => sum + (Number(d.value) || 0), 0) || 0
+        .eq('status', 'paid')
+        .gte('issue_date', lastMonthStart)
+        .lte('issue_date', lastMonthEnd)
+    const lastRevenue = lastMonthInvoices?.reduce((sum, d) => sum + (Number(d.total) || 0), 0) || 0
     const revenueChange = lastRevenue > 0 ? ((currentRevenue - lastRevenue) / lastRevenue) * 100 : 0
 
     // Prospects Count
@@ -140,6 +161,8 @@ export async function getAnalyticsData(): Promise<{ data?: AnalyticsData; error?
             kpis: {
                 revenue: currentRevenue,
                 revenueChange,
+                costs: currentCosts,
+                profit: currentRevenue - currentCosts,
                 prospects: prospectsCount || 0,
                 prospectsChange: 0, // todo: history not tracked easily without snapshots
                 conversionRate: 0, // todo: calculate

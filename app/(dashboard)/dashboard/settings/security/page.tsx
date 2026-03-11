@@ -7,6 +7,11 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { toast } from 'sonner'
+import { updatePassword, signOut, getActiveSessions } from '@/lib/actions/auth'
+import { deleteUserAccount, getUserSettings, updateGDPRConsent, updateUserSettings } from '@/lib/actions/settings'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 import {
   Shield,
   Key,
@@ -22,33 +27,6 @@ import {
   History
 } from 'lucide-react'
 
-const sessions = [
-  {
-    id: '1',
-    device: 'Chrome sur Windows',
-    location: 'Paris, France',
-    lastActive: 'Maintenant',
-    current: true,
-    icon: Chrome
-  },
-  {
-    id: '2',
-    device: 'Safari sur iPhone',
-    location: 'Paris, France',
-    lastActive: 'Il y a 2 heures',
-    current: false,
-    icon: Smartphone
-  },
-  {
-    id: '3',
-    device: 'Firefox sur MacOS',
-    location: 'Lyon, France',
-    lastActive: 'Il y a 3 jours',
-    current: false,
-    icon: Monitor
-  },
-]
-
 const securityEvents = [
   { event: 'Connexion réussie', date: '24 Jan 2026, 14:32', location: 'Paris, France', type: 'success' },
   { event: 'Mot de passe modifié', date: '20 Jan 2026, 10:15', location: 'Paris, France', type: 'info' },
@@ -57,8 +35,102 @@ const securityEvents = [
 ]
 
 export default function SecurityPage() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const [gdprConsent, setGdprConsent] = useState(false)
+  const [emailMarketing, setEmailMarketing] = useState(false)
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true)
+  const [activeSessions, setActiveSessions] = useState<any[]>([])
+
+  useEffect(() => {
+    async function loadSettings() {
+      const { data } = await getUserSettings()
+      if (data) {
+        setGdprConsent(data.gdpr_consent)
+        setEmailMarketing(data.email_notifications)
+      }
+      setIsLoadingSettings(false)
+
+      const { data: sessionData } = await getActiveSessions()
+      if (sessionData) {
+        setActiveSessions(sessionData)
+      }
+    }
+    loadSettings()
+  }, [])
+
+  const handleUpdatePassword = async () => {
+    if (!newPassword) return
+    if (newPassword !== confirmPassword) {
+      toast.error('Les mots de passe ne correspondent pas')
+      return
+    }
+    setIsUpdatingPassword(true)
+    const formData = new FormData()
+    formData.append('password', newPassword)
+
+    try {
+      const res = await updatePassword(formData)
+      if (res?.error) {
+        toast.error(res.error)
+      }
+    } catch (e: any) {
+      if (e.message !== 'NEXT_REDIRECT') {
+        toast.error('Erreur inattendue')
+      }
+    } finally {
+      setIsUpdatingPassword(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer définitivement votre compte ? Cette action est irréversible.')) return
+    setIsDeleting(true)
+    try {
+      const res = await deleteUserAccount()
+      if (res?.error) {
+        toast.error(res.error)
+      } else {
+        toast.success("Compte supprimé avec succès")
+        router.push('/auth/login')
+      }
+    } catch (e) {
+      toast.error('Erreur lors de la suppression du compte')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleGdprToggle = async (checked: boolean) => {
+    setGdprConsent(checked)
+    const res = await updateGDPRConsent(checked)
+    if (res?.error) {
+      toast.error(res.error)
+      setGdprConsent(!checked)
+    } else {
+      toast.success("Préférences enregistrées")
+    }
+  }
+
+  const handleEmailMarketingToggle = async (checked: boolean) => {
+    setEmailMarketing(checked)
+    const formData = new FormData()
+    formData.append('email_notifications', String(checked))
+    const res = await updateUserSettings(formData)
+    if (res?.error) {
+      toast.error(res.error)
+      setEmailMarketing(!checked)
+    } else {
+      toast.success("Préférences enregistrées")
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -122,15 +194,17 @@ export default function SecurityPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="new-password">Nouveau mot de passe</Label>
-              <Input id="new-password" type="password" placeholder="********" />
+              <Input id="new-password" type="password" placeholder="********" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
-              <Input id="confirm-password" type="password" placeholder="********" />
+              <Input id="confirm-password" type="password" placeholder="********" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
             </div>
           </div>
           <div className="pt-2">
-            <Button>Mettre à jour le mot de passe</Button>
+            <Button onClick={handleUpdatePassword} disabled={isUpdatingPassword || !newPassword}>
+              {isUpdatingPassword ? "Mise à jour..." : "Mettre à jour le mot de passe"}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -205,14 +279,14 @@ export default function SecurityPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {sessions.map((session) => (
+            {activeSessions.map((session) => (
               <div
                 key={session.id}
                 className="flex items-center justify-between p-4 rounded-lg border"
               >
                 <div className="flex items-center gap-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                    <session.icon className="h-5 w-5 text-muted-foreground" />
+                    <Monitor className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -236,6 +310,11 @@ export default function SecurityPage() {
                 )}
               </div>
             ))}
+            {activeSessions.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Chargement des sessions...
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -258,7 +337,7 @@ export default function SecurityPage() {
               >
                 <div className="flex items-center gap-3">
                   <div className={`h-2 w-2 rounded-full ${event.type === 'success' ? 'bg-green-500' :
-                      event.type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+                    event.type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
                     }`} />
                   <div>
                     <p className="font-medium text-sm">{event.event}</p>
@@ -281,12 +360,12 @@ export default function SecurityPage() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between p-4 rounded-lg border">
             <div>
-              <p className="font-medium">Partage des données d'utilisation</p>
+              <p className="font-medium">Partage des données d'utilisation (RGPD)</p>
               <p className="text-sm text-muted-foreground">
                 Aidez-nous à améliorer LeadFlow en partageant des données anonymes
               </p>
             </div>
-            <Switch defaultChecked />
+            <Switch checked={gdprConsent} onCheckedChange={handleGdprToggle} disabled={isLoadingSettings} />
           </div>
           <div className="flex items-center justify-between p-4 rounded-lg border">
             <div>
@@ -295,7 +374,7 @@ export default function SecurityPage() {
                 Recevoir des actualités et offres spéciales
               </p>
             </div>
-            <Switch />
+            <Switch checked={emailMarketing} onCheckedChange={handleEmailMarketingToggle} disabled={isLoadingSettings} />
           </div>
           <div className="flex items-center justify-between p-4 rounded-lg border">
             <div>
@@ -304,7 +383,7 @@ export default function SecurityPage() {
                 Rendre votre profil visible aux autres utilisateurs
               </p>
             </div>
-            <Switch />
+            <Switch disabled />
           </div>
         </CardContent>
       </Card>
@@ -323,8 +402,8 @@ export default function SecurityPage() {
                 Cette action est définitive et supprimera toutes vos données
               </p>
             </div>
-            <Button variant="destructive" size="sm">
-              Supprimer mon compte
+            <Button variant="destructive" size="sm" onClick={handleDeleteAccount} disabled={isDeleting}>
+              {isDeleting ? "Suppression..." : "Supprimer mon compte"}
             </Button>
           </div>
         </CardContent>

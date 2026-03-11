@@ -19,13 +19,18 @@ export default async function DashboardLayout({
     redirect('/auth/login')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  // Fetch profile and customization in parallel
+  const [profileResult, customizationResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single(),
+    getCustomization()
+  ])
 
-  const { data: customization } = await getCustomization()
+  const profile = profileResult.data
+  const customization = customizationResult.data
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

@@ -131,10 +131,42 @@ export async function signInWithGoogle() {
   })
 
   if (error) {
+    console.error('Erreur Google Auth:', error.message)
+    if (error.message.includes('provider is not enabled')) {
+      return { error: "Le fournisseur Google n'est pas activé dans votre tableau de bord Supabase." }
+    }
     return { error: error.message }
   }
 
   if (data.url) {
     redirect(data.url)
   }
+}
+
+export async function getActiveSessions() {
+  const supabase = await createClient()
+
+  // Note: Supabase free tier doesn't support fetching all active sessions natively through the JS client
+  // We can only get the current session. For a real multi-session view, you would need
+  // to track sessions manually in a custom database table upon login/logout.
+  // For now, we will return the current session.
+  const { data: { session }, error } = await supabase.auth.getSession()
+
+  if (error || !session) {
+    return { data: [], error: error?.message || 'Aucune session' }
+  }
+
+  // Parse user agent if available, otherwise use a generic name
+  const isWindows = typeof navigator !== 'undefined' && navigator.userAgent ? navigator.userAgent.includes('Windows') : true
+  const deviceName = isWindows ? 'Cet appareil' : 'Appareil actuel'
+
+  const currentSession = {
+    id: session.access_token.substring(0, 10), // Use part of token as ID
+    device: deviceName,
+    location: 'Non spécifié',
+    lastActive: 'Maintenant',
+    current: true,
+  }
+
+  return { data: [currentSession], error: null }
 }

@@ -27,6 +27,12 @@ export function Copilot() {
     const scrollAreaRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
+        const handleToggle = () => setIsOpen(prev => !prev)
+        window.addEventListener('toggle-copilot', handleToggle)
+        return () => window.removeEventListener('toggle-copilot', handleToggle)
+    }, [])
+
+    useEffect(() => {
         if (scrollAreaRef.current) {
             const scrollArea = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
             if (scrollArea) {

@@ -221,7 +221,14 @@ export default function SignUpPage() {
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={() => signInWithGoogle()}
+                disabled={isLoading}
+                onClick={async () => {
+                  setError(null)
+                  const result = await signInWithGoogle()
+                  if (result?.error) {
+                    setError(result.error)
+                  }
+                }}
               >
                 <Globe className="mr-2 h-4 w-4" />
                 S&apos;inscrire avec Google

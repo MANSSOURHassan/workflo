@@ -17,14 +17,25 @@ export async function getCustomization() {
         return { data: null, error: 'Non autorisé' }
     }
 
-    let { data, error } = await supabase
-        .from('customizations')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
+    // Fetch both tables in parallel
+    const [customRes, settingsRes] = await Promise.all([
+        supabase
+            .from('customizations')
+            .select('*')
+            .eq('user_id', user.id)
+            .single(),
+        supabase
+            .from('user_settings')
+            .select('language, timezone')
+            .eq('user_id', user.id)
+            .single()
+    ])
+
+    let customization = customRes.data
+    let settingsData = settingsRes.data
 
     // Create default customization if not exist
-    if (!data && (!error || error.code === 'PGRST116')) {
+    if (!customization && (!customRes.error || customRes.error.code === 'PGRST116')) {
         const { data: newCustomization, error: createError } = await supabase
             .from('customizations')
             .insert({
@@ -43,26 +54,15 @@ export async function getCustomization() {
             .select()
             .single()
 
-        if (createError) {
-            // If table doesn't exist, return null gracefully (or handle error)
-            if (createError.code === '42P01') {
-                return { data: null, error: 'Table customizations manquante' }
-            }
-            return { data: null, error: createError.message }
+        if (!createError) {
+            customization = newCustomization
+        } else if (createError.code === '42P01') {
+            return { data: null, error: 'Table customizations manquante' }
         }
-
-        data = newCustomization
     }
 
-    // Fetch user settings
-    let { data: settingsData } = await supabase
-        .from('user_settings')
-        .select('language, timezone')
-        .eq('user_id', user.id)
-        .single()
-
     // Create default settings if not exist
-    if (!settingsData) {
+    if (!settingsData && (!settingsRes.error || settingsRes.error.code === 'PGRST116')) {
         const { data: newSettings } = await supabase
             .from('user_settings')
             .insert({
@@ -82,7 +82,7 @@ export async function getCustomization() {
 
     return {
         data: {
-            ...data,
+            ...customization,
             language: settingsData?.language || 'Français',
             timezone: settingsData?.timezone || 'Europe/Paris (UTC+1)'
         } as ExtendedCustomization,

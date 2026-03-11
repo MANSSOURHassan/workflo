@@ -610,14 +610,29 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, first_name, last_name, plan)
+  -- Insert into profiles
+  INSERT INTO public.profiles (id, email, first_name, last_name, company, plan)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'first_name', ''),
     COALESCE(NEW.raw_user_meta_data->>'last_name', ''),
+    COALESCE(NEW.raw_user_meta_data->>'company_name', ''),
     'starter'
   );
+
+  -- Insert default user settings
+  INSERT INTO public.user_settings (user_id, email_notifications, push_notifications, marketing_emails, weekly_report, timezone, language)
+  VALUES (
+    NEW.id,
+    TRUE,
+    TRUE,
+    FALSE,
+    TRUE,
+    'Europe/Paris',
+    'fr'
+  );
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

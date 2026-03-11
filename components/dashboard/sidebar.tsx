@@ -221,6 +221,7 @@ export function DashboardSidebar({ user, profile, customization }: DashboardSide
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('toggle-copilot'))}
                   onMouseEnter={() => handleSectionHover('ia-assistant')}
                   className={cn(
                     'flex h-10 w-10 items-center justify-center rounded-xl transition-all',

@@ -22,7 +22,8 @@ import {
   Star,
   Flame,
   Medal,
-  Loader2
+  Loader2,
+  Wallet
 } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RePieChart, Pie, Cell, Legend, LineChart, Line } from "recharts"
 import { getAnalyticsData, AnalyticsData } from "@/lib/actions/analytics"
@@ -57,10 +58,10 @@ export default function AnalyticsPage() {
   }
 
   const kpis = [
-    { label: "Chiffre d'affaires", value: `${(data?.kpis.revenue || 0).toLocaleString()} EUR`, change: `${(data?.kpis.revenueChange || 0).toFixed(1)}%`, trend: (data?.kpis.revenueChange || 0) >= 0 ? "up" : "down", icon: DollarSign },
-    { label: "Nouveaux prospects", value: `${data?.kpis.prospects || 0}`, change: "+0%", trend: "up", icon: Users }, // History not fully tracked yet
-    { label: "Taux de conversion", value: `${(data?.kpis.conversionRate || 0).toFixed(1)}%`, change: "0%", trend: "up", icon: Target },
-    { label: "Deals en cours", value: `${data?.kpis.activeDeals || 0}`, change: "0", trend: "down", icon: Activity },
+    { label: "Chiffre d'affaires encaissé", value: `${(data?.kpis.revenue || 0).toLocaleString()} EUR`, change: `${(data?.kpis.revenueChange || 0).toFixed(1)}%`, trend: (data?.kpis.revenueChange || 0) >= 0 ? "up" : "down", icon: DollarSign, color: "text-emerald-600" },
+    { label: "Dépenses réelles", value: `${(data?.kpis.costs || 0).toLocaleString()} EUR`, change: "-", trend: "down", icon: TrendingDown, color: "text-rose-600" },
+    { label: "Résultat Net", value: `${(data?.kpis.profit || 0).toLocaleString()} EUR`, change: "-", trend: (data?.kpis.profit || 0) >= 0 ? "up" : "down", icon: Wallet, color: (data?.kpis.profit || 0) >= 0 ? "text-emerald-600" : "text-rose-600" },
+    { label: "Deals en cours", value: `${data?.kpis.activeDeals || 0}`, change: "0", trend: "up", icon: Activity, color: "text-primary" },
   ]
 
   return (
@@ -98,20 +99,24 @@ export default function AnalyticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">{kpi.label}</p>
-                  <p className="text-2xl font-bold mt-1">{kpi.value}</p>
+                  <p className={`text-2xl font-bold mt-1 ${kpi.color}`}>{kpi.value}</p>
                   <div className="flex items-center gap-1 mt-1">
-                    {kpi.trend === "up" ? (
-                      <TrendingUp className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4 text-red-500" />
+                    {kpi.change !== "-" && (
+                      <>
+                        {kpi.trend === "up" ? (
+                          <TrendingUp className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4 text-rose-500" />
+                        )}
+                        <span className={kpi.trend === "up" ? "text-emerald-500 text-sm" : "text-rose-500 text-sm"}>
+                          {kpi.change}
+                        </span>
+                      </>
                     )}
-                    <span className={kpi.trend === "up" ? "text-green-500 text-sm" : "text-red-500 text-sm"}>
-                      {kpi.change}
-                    </span>
                   </div>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                  <kpi.icon className="h-6 w-6 text-primary" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/5">
+                  <kpi.icon className={`h-6 w-6 ${kpi.color || 'text-primary'}`} />
                 </div>
               </div>
             </CardContent>
@@ -146,19 +151,18 @@ export default function AnalyticsPage() {
                   <Area
                     type="monotone"
                     dataKey="revenue"
-                    stroke="#6366F1"
+                    stroke="#10B981"
                     strokeWidth={2}
                     fill="url(#colorRevenue)"
-                    name="CA Realise"
+                    name="Recettes (Ventes)"
                   />
                   <Line
                     type="monotone"
-                    dataKey="target"
-                    stroke="#94A3B8"
-                    strokeDasharray="5 5"
+                    dataKey="costs"
+                    stroke="#EF4444"
                     strokeWidth={2}
                     dot={false}
-                    name="Objectif"
+                    name="Dépenses (Charges)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -296,8 +300,8 @@ export default function AnalyticsPage() {
                   <div
                     key={index}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${achievement.unlocked
-                        ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200"
-                        : "bg-muted/50 opacity-50"
+                      ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200"
+                      : "bg-muted/50 opacity-50"
                       }`}
                   >
                     <achievement.icon className={`h-4 w-4 ${achievement.unlocked ? "text-yellow-500" : "text-muted-foreground"}`} />

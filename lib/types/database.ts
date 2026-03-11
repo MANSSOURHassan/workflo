@@ -398,3 +398,16 @@ export interface Customization {
   created_at: string
   updated_at: string
 }
+
+export interface UrssafDeclaration {
+  id: string
+  user_id: string
+  period_start: string
+  period_end: string
+  sales_revenue: number
+  services_revenue: number
+  tax_amount: number
+  status: 'pending' | 'declared' | 'paid'
+  created_at: string
+  updated_at: string
+}

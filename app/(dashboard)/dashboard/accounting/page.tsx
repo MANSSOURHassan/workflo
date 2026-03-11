@@ -25,7 +25,8 @@ import {
     Mail,
     Share2,
     MessageCircle,
-    FileDown
+    FileDown,
+    Landmark
 } from 'lucide-react'
 import {
     DropdownMenu,
@@ -47,15 +48,23 @@ import {
     deleteInvoice,
     deleteQuote,
     sendInvoiceByEmail,
-    sendQuoteByEmail
+    sendQuoteByEmail,
+    deleteExpense,
+    deleteSupplier,
+    getUrssafDeclarations,
+    updateUrssafStatus,
+    deleteUrssafDeclaration
 } from '@/lib/actions/accounting'
-import { Expense, Supplier, Invoice, Quote } from '@/lib/types/database'
+import { Expense, Supplier, Invoice, Quote, UrssafDeclaration } from '@/lib/types/database'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { AddExpenseModal } from '@/components/accounting/add-expense-modal'
 import { AddSupplierModal } from '@/components/accounting/add-supplier-modal'
 import { AddInvoiceModal } from '@/components/accounting/add-invoice-modal'
 import { AddQuoteModal } from '@/components/accounting/add-quote-modal'
+import { AddUrssafModal } from '@/components/accounting/add-urssaf-modal'
+import { EditSupplierModal } from '@/components/accounting/edit-supplier-modal'
+import { EditExpenseModal } from '@/components/accounting/edit-expense-modal'
 import {
     Tooltip,
     TooltipContent,
@@ -98,8 +107,15 @@ export default function AccountingPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([])
     const [quotes, setQuotes] = useState<Quote[]>([])
     const [suppliers, setSuppliers] = useState<Supplier[]>([])
+    const [urssafDeclarations, setUrssafDeclarations] = useState<UrssafDeclaration[]>([])
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState('bilan')
+
+    // Modals states
+    const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+    const [isEditExpenseOpen, setIsEditExpenseOpen] = useState(false)
+    const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
+    const [isEditSupplierOpen, setIsEditSupplierOpen] = useState(false)
 
     useEffect(() => {
         loadData()
@@ -108,13 +124,14 @@ export default function AccountingPage() {
     async function loadData() {
         setLoading(true)
         try {
-            const [summaryRes, accountsRes, expensesRes, suppliersRes, invoicesRes, quotesRes] = await Promise.all([
+            const [summaryRes, accountsRes, expensesRes, suppliersRes, invoicesRes, quotesRes, urssafRes] = await Promise.all([
                 getProFinancialSummary(),
                 getAccountingAccounts(),
                 getExpenses(),
                 getSuppliers(),
                 getInvoices(),
-                getQuotes()
+                getQuotes(),
+                getUrssafDeclarations()
             ])
 
             if (summaryRes.data) setProSummary(summaryRes.data)
@@ -123,6 +140,7 @@ export default function AccountingPage() {
             if (suppliersRes.data) setSuppliers(suppliersRes.data)
             if (invoicesRes.data) setInvoices(invoicesRes.data)
             if (quotesRes.data) setQuotes(quotesRes.data as any)
+            if (urssafRes?.data) setUrssafDeclarations(urssafRes.data)
         } catch (error) {
             toast.error('Erreur lors du chargement des données comptables')
         } finally {
@@ -187,6 +205,45 @@ export default function AccountingPage() {
             error: 'Erreur lors de l\'envoi'
         })
         loadData()
+    }
+
+    const handleDeleteExpense = async (id: string) => {
+        if (!confirm('Supprimer cette dépense ?')) return
+        const res = await deleteExpense(id)
+        if (res.error) toast.error(res.error)
+        else {
+            toast.success('Dépense supprimée')
+            loadData()
+        }
+    }
+
+    const handleDeleteSupplier = async (id: string) => {
+        if (!confirm('Supprimer ce fournisseur ? (Attention : Impossible sil est lié à des dépenses)')) return
+        const res = await deleteSupplier(id)
+        if (res.error) toast.error("Erreur de suppression. Ce fournisseur est peut-être lié à une dépense.")
+        else {
+            toast.success('Fournisseur supprimé')
+            loadData()
+        }
+    }
+
+    const handleDeleteUrssaf = async (id: string) => {
+        if (!confirm('Supprimer cette déclaration URSSAF ?')) return
+        const res = await deleteUrssafDeclaration(id)
+        if (res.error) toast.error(res.error)
+        else {
+            toast.success('Déclaration supprimée')
+            loadData()
+        }
+    }
+
+    const handleUpdateUrssafStatus = async (id: string, status: 'pending' | 'declared' | 'paid') => {
+        const res = await updateUrssafStatus(id, status)
+        if (res.error) toast.error(res.error)
+        else {
+            toast.success('Statut mis à jour')
+            loadData()
+        }
     }
 
     if (loading) {
@@ -309,6 +366,10 @@ export default function AccountingPage() {
                         <Building2 className="h-4 w-4" />
                         Tiers
                     </TabsTrigger>
+                    <TabsTrigger value="urssaf" className="gap-2">
+                        <Landmark className="h-4 w-4" />
+                        URSSAF
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="bilan" className="space-y-4">
@@ -369,8 +430,8 @@ export default function AccountingPage() {
                                 <CardContent className="max-h-[300px] overflow-y-auto pt-2">
                                     <div className="space-y-3">
                                         {/* Invoices in Bilan */}
-                                        {proSummary?.invoices?.map((inv: any) => (
-                                            <div key={inv.id} className="flex items-center justify-between text-xs p-2 rounded border border-emerald-100 bg-emerald-50/30">
+                                        {proSummary?.invoices?.map((inv: any, idx: number) => (
+                                            <div key={inv.id || `inv-${idx}`} className="flex items-center justify-between text-xs p-2 rounded border border-emerald-100 bg-emerald-50/30">
                                                 <div className="flex items-center gap-2">
                                                     <Badge className="bg-emerald-500/20 text-emerald-700 hover:bg-emerald-500/20 text-[9px] border-none">VENTE</Badge>
                                                     <span className="font-mono font-bold text-slate-700">{inv.invoice_number}</span>
@@ -379,8 +440,8 @@ export default function AccountingPage() {
                                             </div>
                                         ))}
                                         {/* Expenses in Bilan */}
-                                        {proSummary?.expenses?.map((exp: any) => (
-                                            <div key={exp.id} className="flex items-center justify-between text-xs p-2 rounded border border-rose-100 bg-rose-50/30">
+                                        {proSummary?.expenses?.map((exp: any, idx: number) => (
+                                            <div key={exp.id || `exp-${idx}`} className="flex items-center justify-between text-xs p-2 rounded border border-rose-100 bg-rose-50/30">
                                                 <div className="flex items-center gap-2">
                                                     <Badge className="bg-rose-500/20 text-rose-700 hover:bg-rose-500/20 text-[9px] border-none">ACHAT</Badge>
                                                     <span className="text-slate-700">{exp.description}</span>
@@ -598,8 +659,8 @@ export default function AccountingPage() {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {expenses.map((expense) => (
-                                        <div key={expense.id} className="flex items-center justify-between p-4 rounded-xl border border-primary/5 bg-card hover:shadow-sm transition-all">
+                                    {expenses.map((expense, idx) => (
+                                        <div key={expense.id || `exp-main-${idx}`} className="flex items-center justify-between p-4 rounded-xl border border-primary/5 bg-card hover:shadow-sm transition-all">
                                             <div className="flex items-center gap-4">
                                                 <div className={cn(
                                                     "h-10 w-10 rounded-lg flex items-center justify-center transition-colors",
@@ -615,11 +676,31 @@ export default function AccountingPage() {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="font-bold text-lg">{expense.total_amount.toLocaleString('fr-FR')} €</p>
-                                                <p className="text-[10px] text-muted-foreground">
-                                                    {new Date(expense.issue_date).toLocaleDateString('fr-FR')}
-                                                </p>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right">
+                                                    <p className="font-bold text-lg">{expense.total_amount.toLocaleString('fr-FR')} €</p>
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                        {new Date(expense.issue_date).toLocaleDateString('fr-FR')}
+                                                    </p>
+                                                </div>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => {
+                                                            setEditingExpense(expense)
+                                                            setIsEditExpenseOpen(true)
+                                                        }}>
+                                                            Modifier
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-rose-600" onClick={() => handleDeleteExpense(expense.id)}>
+                                                            <Trash2 className="mr-2 h-4 w-4" /> Supprimer
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
                                         </div>
                                     ))}
@@ -627,6 +708,13 @@ export default function AccountingPage() {
                             )}
                         </CardContent>
                     </Card>
+                    <EditExpenseModal
+                        open={isEditExpenseOpen}
+                        onOpenChange={setIsEditExpenseOpen}
+                        expense={editingExpense}
+                        suppliers={suppliers}
+                        onSuccess={loadData}
+                    />
                 </TabsContent>
 
                 <TabsContent value="pce" className="space-y-4">
@@ -696,13 +784,107 @@ export default function AccountingPage() {
                         <CardContent>
                             <div className="grid gap-4 md:grid-cols-3">
                                 {suppliers.map((s) => (
-                                    <div key={s.id} className="p-4 rounded-xl border bg-card hover:shadow-md transition-all">
-                                        <h3 className="font-bold">{s.name}</h3>
-                                        <p className="text-sm text-muted-foreground">{s.email || 'Pas d\'email'}</p>
-                                        <div className="mt-2 text-xs uppercase tracking-widest text-primary font-bold">{s.category || 'Général'}</div>
+                                    <div key={s.id} className="p-4 rounded-xl border bg-card hover:shadow-md transition-all flex justify-between items-start">
+                                        <div>
+                                            <h3 className="font-bold">{s.name}</h3>
+                                            <p className="text-sm text-muted-foreground">{s.email || 'Pas d\'email'}</p>
+                                            <div className="mt-2 text-xs uppercase tracking-widest text-primary font-bold">{s.category || 'Général'}</div>
+                                        </div>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => {
+                                                    setEditingSupplier(s)
+                                                    setIsEditSupplierOpen(true)
+                                                }}>
+                                                    Modifier
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem className="text-rose-600" onClick={() => handleDeleteSupplier(s.id)}>
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Supprimer
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 ))}
                             </div>
+                        </CardContent>
+                    </Card>
+                    <EditSupplierModal
+                        open={isEditSupplierOpen}
+                        onOpenChange={setIsEditSupplierOpen}
+                        supplier={editingSupplier}
+                        onSuccess={loadData}
+                    />
+                </TabsContent>
+
+                <TabsContent value="urssaf" className="space-y-4">
+                    <div className="flex justify-end gap-2">
+                        <AddUrssafModal onSuccess={loadData} />
+                    </div>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Déclarations URSSAF</CardTitle>
+                            <CardDescription>Gérez vos déclarations de chiffre d'affaires et suivez vos cotisations.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {urssafDeclarations.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground italic">
+                                    Aucune déclaration URSSAF.
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {urssafDeclarations.map((decl) => (
+                                        <div key={decl.id} className="flex items-center justify-between p-4 rounded-xl border bg-card hover:shadow-sm transition-all">
+                                            <div>
+                                                <p className="font-semibold text-lg">Période du {new Date(decl.period_start).toLocaleDateString('fr-FR')} au {new Date(decl.period_end).toLocaleDateString('fr-FR')}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <Badge variant="outline" className={cn("text-xs font-medium",
+                                                        decl.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
+                                                            decl.status === 'declared' ? 'bg-blue-100 text-blue-700' :
+                                                                'bg-orange-100 text-orange-700'
+                                                    )}>
+                                                        {decl.status === 'paid' ? 'Payé' : decl.status === 'declared' ? 'Déclaré' : 'À déclarer'}
+                                                    </Badge>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        CA: {(decl.sales_revenue + decl.services_revenue).toLocaleString('fr-FR')} €
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right">
+                                                    <p className="font-bold text-xl text-primary">{decl.tax_amount.toLocaleString('fr-FR')} €</p>
+                                                    <p className="text-[10px] text-muted-foreground">de cotisations</p>
+                                                </div>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => handleUpdateUrssafStatus(decl.id, 'declared')}>
+                                                            Marquer comme Déclaré
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleUpdateUrssafStatus(decl.id, 'paid')}>
+                                                            Marquer comme Payé
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleUpdateUrssafStatus(decl.id, 'pending')}>
+                                                            Repasser 'À déclarer'
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-rose-600" onClick={() => handleDeleteUrssaf(decl.id)}>
+                                                            <Trash2 className="mr-2 h-4 w-4" /> Supprimer
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>

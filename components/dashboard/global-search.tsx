@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -174,6 +174,7 @@ export function GlobalSearch() {
       {/* Search Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[600px] p-0 gap-0 overflow-hidden">
+          <DialogTitle className="sr-only">Recherche globale</DialogTitle>
           {/* Search Input */}
           <div className="flex items-center border-b px-4">
             <Search className="h-5 w-5 text-muted-foreground shrink-0" />
