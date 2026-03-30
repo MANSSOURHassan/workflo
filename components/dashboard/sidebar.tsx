@@ -38,7 +38,8 @@ import {
   UsersRound,
   ChevronDown,
   TrendingUp,
-  Zap
+  Zap,
+  Wallet
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
@@ -127,6 +128,7 @@ const navSections: NavSection[] = [
       { name: 'Devis & Factures', href: '/dashboard/invoices', icon: FileText },
       { name: 'Banques', href: '/dashboard/banking', icon: CreditCard },
       { name: 'Catalogue', href: '/dashboard/catalog', icon: Package },
+      { name: 'Paie', href: '/dashboard/payroll', icon: Wallet },
     ]
   },
   {

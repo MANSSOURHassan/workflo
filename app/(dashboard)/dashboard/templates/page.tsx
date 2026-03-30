@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/dialog'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 interface Template {
   id: string
@@ -242,17 +243,15 @@ export default function TemplatesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Modèles</h1>
-          <p className="text-muted-foreground">Gérez vos modèles d'emails</p>
-        </div>
-        <Button onClick={openCreateDialog}>
+      <PageHeader 
+        title="Modèles d'Emails" 
+        description="Créez et organisez vos modèles d'emails pour vos campagnes et vos réponses rapides. Utilisez des variables pour personnaliser vos messages."
+      >
+        <Button onClick={openCreateDialog} className="bg-primary hover:shadow-lg shadow-primary/20 transition-all font-semibold">
           <Plus className="mr-2 h-4 w-4" />
           Nouveau modèle
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Search */}
       <Card>

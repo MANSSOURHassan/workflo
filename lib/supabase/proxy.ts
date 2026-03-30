@@ -53,9 +53,21 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // 1. Auth protection (Merged Logic)
+  const isAuthPage = pathname.startsWith('/auth')
+  const isDashboardPage = pathname.startsWith('/dashboard')
+  const isApiPage = pathname.startsWith('/api')
+  const isPublicApi = pathname.startsWith('/api/public')
+
+  // If the user is not logged in and the dashboard or private API is accessed, redirect to the login page
+  if (!user && (isDashboardPage || (isApiPage && !isPublicApi))) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    return NextResponse.redirect(url)
+  }
+
   // Redirect authenticated users away from auth pages to dashboard
-  const isAuthPage = pathname === '/auth/login' || pathname === '/auth/sign-up'
-  if (isAuthPage && user) {
+  if (user && isAuthPage && pathname !== '/auth/callback') {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
@@ -66,40 +78,31 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
-  // If the user is not logged in and the dashboard is accessed, redirect to the login page
-  if (pathname.startsWith('/dashboard') && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
-  }
-
-
-
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // We add security headers to protect the application
+  // IMPORTANT: We add security headers to protect the application
   const response = supabaseResponse
 
-  // Content Security Policy
-  const cspHeader = [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
-    "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co",
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "media-src 'self'",
-    "worker-src 'self' blob:"
-  ].join('; ')
+  // Content Security Policy (Reinforced version)
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' blob: data: https://*.supabase.co https://*.googleusercontent.com https:;
+    font-src 'self' data:;
+    connect-src 'self' https://*.supabase.co;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    worker-src 'self' blob:;
+    upgrade-insecure-requests;
+  `.replace(/\s{2,}/g, ' ').trim()
 
   response.headers.set('Content-Security-Policy', cspHeader)
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
 
   return response

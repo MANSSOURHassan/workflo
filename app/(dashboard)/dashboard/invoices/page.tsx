@@ -48,6 +48,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { AddInvoiceModal } from '@/components/accounting/add-invoice-modal'
 import { AddQuoteModal } from '@/components/accounting/add-quote-modal'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 const invoiceStatusConfig: Record<string, { label: string, color: string }> = {
   draft: { label: 'Brouillon', color: 'bg-slate-100 text-slate-700' },
@@ -169,18 +170,15 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Facturation & Devis</h1>
-          <p className="text-muted-foreground">
-            Gérez vos propositions commerciales et vos encaissements clients.
-          </p>
-        </div>
+      <PageHeader 
+        title="Devis & Factures" 
+        description="Gérez vos documents commerciaux, transformez vos devis en factures et suivez vos paiements clients."
+      >
         <div className="flex gap-2">
           <AddQuoteModal onSuccess={loadData} />
           <AddInvoiceModal onSuccess={loadData} />
         </div>
-      </div>
+      </PageHeader>
 
       {/* Simple Stats Summary */}
       <div className="grid gap-4 md:grid-cols-4">

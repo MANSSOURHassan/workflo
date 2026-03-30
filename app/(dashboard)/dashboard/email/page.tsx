@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +30,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import { PageHeader } from "@/components/dashboard/page-header"
 
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -174,15 +176,45 @@ export default function EmailPage() {
     window.location.href = '/api/auth/google'
   }
 
+  function OAuthFeedback() {
+    const searchParams = useSearchParams()
+    
+    useEffect(() => {
+      const success = searchParams.get('success')
+      const error = searchParams.get('error')
+      
+      if (success === 'gmail_connected') {
+        toast.success("Compte Gmail connecté avec succès !")
+        window.history.replaceState(null, '', '/dashboard/email')
+      }
+      
+      if (error) {
+        const messages: Record<string, string> = {
+          'oauth_denied': "Connexion annulée par l'utilisateur",
+          'no_code': "Code d'autorisation manquant",
+          'config_missing': "Configuration Google OAuth manquante",
+          'token_exchange_failed': "Échec de l'authentification Google",
+          'user_info_failed': "Impossible de lire votre profil Google",
+          'not_authenticated': "Vous n'êtes pas connecté",
+          'save_failed': "Erreur lors de l'enregistrement de l'intégration",
+        }
+        toast.error(messages[error] || "Erreur inconnue lors de la connexion")
+        window.history.replaceState(null, '', '/dashboard/email')
+      }
+    }, [searchParams])
+    
+    return null
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Emails</h1>
-          <p className="text-muted-foreground">Gérez vos emails et détectez les opportunités avec l'IA</p>
-        </div>
+      <Suspense fallback={null}>
+        <OAuthFeedback />
+      </Suspense>
+      <PageHeader 
+        title="Emails" 
+        description="Consultez et gérez vos échanges e-mails intégrés directement dans votre flux de travail."
+      >
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleSync} disabled={isSyncing || !integration}>
             <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
@@ -196,7 +228,7 @@ export default function EmailPage() {
             Nouveau message
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Gmail Connection Status */}
       {!integration ? (
@@ -371,7 +403,7 @@ export default function EmailPage() {
                                   {email.ai_opportunity_score}%
                                 </Badge>
                               )}
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-xs text-muted-foreground" suppressHydrationWarning>
                                 {new Date(email.received_at).toLocaleDateString() === new Date().toLocaleDateString()
                                   ? new Date(email.received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                                   : new Date(email.received_at).toLocaleDateString([], { day: '2-digit', month: 'short' })

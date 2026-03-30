@@ -25,14 +25,6 @@ export default async function EditProspectPage({ params }: EditProspectPageProps
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Modifier le prospect</h1>
-          <p className="text-muted-foreground">
-            {prospect.first_name && prospect.last_name
-              ? `${prospect.first_name} ${prospect.last_name}`
-              : prospect.email}
-          </p>
-        </div>
       </div>
       <ProspectForm prospect={prospect} />
     </div>

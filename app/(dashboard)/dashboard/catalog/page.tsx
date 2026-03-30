@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/dialog'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 interface Product {
   id: string
@@ -249,17 +250,15 @@ export default function CatalogPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Catalogue</h1>
-          <p className="text-muted-foreground">Gérez vos produits et services</p>
-        </div>
-        <Button onClick={openCreateDialog}>
+      <PageHeader 
+        title="Catalogue Produits" 
+        description="Gérez vos services, abonnements et produits. Définissez vos tarifs et structures de facturation pour vos devis."
+      >
+        <Button onClick={openCreateDialog} className="bg-primary hover:shadow-lg shadow-primary/20 transition-all font-semibold">
           <Plus className="mr-2 h-4 w-4" />
           Nouveau produit
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">

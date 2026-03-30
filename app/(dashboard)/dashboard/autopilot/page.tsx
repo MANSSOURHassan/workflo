@@ -1,6 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+export const dynamic = 'force-dynamic'
+
+import { useState, useEffect, useMemo } from 'react'
+import useSWR, { mutate } from 'swr'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -33,10 +36,22 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getAutomations, createAutomation, deleteAutomation, updateAutomation, AutopilotRule } from '@/lib/actions/autopilot'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default function AutopilotPage() {
-  const [automations, setAutomations] = useState<AutopilotRule[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: automations = [], isLoading: loading, error } = useSWR<AutopilotRule[]>(
+    'autopilot-rules',
+    async () => {
+      const result = await getAutomations();
+      if (result.error) throw new Error(result.error);
+      return result.data || [];
+    },
+    {
+      refreshInterval: 10000, // Raîchir toutes les 10 secondes
+      revalidateOnFocus: true
+    }
+  )
+
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [formData, setFormData] = useState({
@@ -45,26 +60,17 @@ export default function AutopilotPage() {
     trigger_type: 'event'
   })
 
-  // Load data on mount
+  // Log for debugging
   useEffect(() => {
-    loadData()
-  }, [])
-
-  async function loadData() {
-    setLoading(true)
-    const result = await getAutomations()
-    if (result.data) {
-      setAutomations(result.data)
-    } else if (result.error) {
-      // Check for specific error about missing relation
-      if (result.error.includes('relation "autopilot_rules" does not exist')) {
+    if (error) {
+      if (error.message.includes('relation "autopilot_rules" does not exist')) {
         toast.error('Table manquante: veuillez exécuter missing-tables.sql')
       } else {
-        toast.error("Erreur de chargement: " + result.error)
+        toast.error("Erreur de chargement: " + error.message)
       }
     }
-    setLoading(false)
-  }
+  }, [error])
+
 
   async function handleCreate() {
     if (!formData.name) return toast.error("Le nom est requis")
@@ -78,7 +84,7 @@ export default function AutopilotPage() {
     })
 
     if (result.data) {
-      setAutomations([result.data as AutopilotRule, ...automations])
+      mutate('autopilot-rules')
       setIsCreateOpen(false)
       setFormData({ name: '', description: '', trigger_type: 'event' })
       toast.success("Automatisation créée avec succès")
@@ -111,7 +117,7 @@ export default function AutopilotPage() {
     const result = await createAutomation(template)
 
     if (result.data) {
-      setAutomations([result.data as AutopilotRule, ...automations])
+      mutate('autopilot-rules')
       toast.success("Automatisation configurée depuis le modèle")
     } else {
       toast.error(result.error || "Erreur lors de la création")
@@ -119,30 +125,44 @@ export default function AutopilotPage() {
   }
 
   async function toggleStatus(id: string, currentStatus: boolean) {
-    // Optimistic update
-    setAutomations(automations.map(a => a.id === id ? { ...a, is_active: !currentStatus } : a))
+    // Optimistic update using mutate
+    mutate('autopilot-rules', automations.map(a => a.id === id ? { ...a, is_active: !currentStatus } : a), false)
 
     const result = await updateAutomation(id, { is_active: !currentStatus })
-    if (!result.success) {
-      // Revert if failed
-      setAutomations(automations.map(a => a.id === id ? { ...a, is_active: currentStatus } : a))
-      toast.error("Erreur lors de la mise à jour")
+    if (result.success) {
+      mutate('autopilot-rules')
+      toast.success(currentStatus ? "Automation désactivée" : "Automation activée")
     } else {
-      toast.success(!currentStatus ? "Activé" : "Mis en pause")
+      toast.error(result.error || "Erreur lors de la mise à jour")
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette automatisation ?")) return
-
+    if (!confirm("Supprimer cette automation ?")) return
     const result = await deleteAutomation(id)
     if (result.success) {
-      setAutomations(automations.filter(a => a.id !== id))
-      toast.success("Automatisation supprimée")
+      mutate('autopilot-rules')
+      toast.success("Automation supprimée")
     } else {
-      toast.error("Erreur lors de la suppression")
+      toast.error(result.error || "Erreur lors de la suppression")
     }
   }
+
+  const totalStats = useMemo(() => {
+    const sent = automations.reduce((acc, a) => acc + (a.stats?.sent || 0), 0)
+    const opened = automations.reduce((acc, a) => acc + (a.stats?.opened || 0), 0)
+    const clicked = automations.reduce((acc, a) => acc + (a.stats?.clicked || 0), 0)
+    const activeConfig = automations.filter(a => a.is_active).length
+
+    return {
+      sent,
+      opened,
+      clicked,
+      activeConfig,
+      openRate: sent > 0 ? Math.round((opened / sent) * 100) : 0,
+      clickRate: sent > 0 ? Math.round((clicked / sent) * 100) : 0
+    }
+  }, [automations])
 
   if (loading) {
     return (
@@ -152,26 +172,17 @@ export default function AutopilotPage() {
     )
   }
 
-  const stats = {
-    sent: automations.reduce((acc, a) => acc + (a.stats?.sent || 0), 0),
-    activeConfig: automations.filter(a => a.is_active).length
-  }
-
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Autopilot Email</h1>
-          <p className="text-muted-foreground">
-            Automatisez vos séquences d'emails et gagnez du temps
-          </p>
-        </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+      <PageHeader 
+        title="Autopilot" 
+        description="Automatisez vos processus de vente et vos relances clients pour ne plus jamais manquer une opportunité."
+      >
+        <Button onClick={() => setIsCreateOpen(true)} className="bg-primary hover:shadow-lg shadow-primary/20 transition-all font-semibold">
           <Plus className="mr-2 h-4 w-4" />
           Nouvelle automation
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -182,7 +193,7 @@ export default function AutopilotPage() {
                 <Mail className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.sent}</p>
+                <p className="text-2xl font-bold">{totalStats.sent}</p>
                 <p className="text-sm text-muted-foreground">Emails envoyés</p>
               </div>
             </div>
@@ -195,7 +206,7 @@ export default function AutopilotPage() {
                 <MailOpen className="h-6 w-6 text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">74%</p>
+                <p className="text-2xl font-bold">{totalStats.openRate}%</p>
                 <p className="text-sm text-muted-foreground">Taux d'ouverture</p>
               </div>
             </div>
@@ -208,7 +219,7 @@ export default function AutopilotPage() {
                 <MousePointerClick className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">18%</p>
+                <p className="text-2xl font-bold">{totalStats.clickRate}%</p>
                 <p className="text-sm text-muted-foreground">Taux de clic</p>
               </div>
             </div>
@@ -221,7 +232,7 @@ export default function AutopilotPage() {
                 <Zap className="h-6 w-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.activeConfig}</p>
+                <p className="text-2xl font-bold">{totalStats.activeConfig}</p>
                 <p className="text-sm text-muted-foreground">Automations actives</p>
               </div>
             </div>

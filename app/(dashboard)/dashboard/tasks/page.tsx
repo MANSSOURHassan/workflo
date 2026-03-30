@@ -43,6 +43,8 @@ import {
 } from '@/components/ui/dialog'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/dashboard/page-header'
+import { createTask, updateTask, deleteTask as deleteTaskAction, TaskStatus, TaskPriority } from '@/lib/actions/tasks'
 
 interface Task {
   id: string
@@ -52,6 +54,7 @@ interface Task {
   priority: 'low' | 'medium' | 'high' | 'urgent'
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
   due_date: string | null
+  completed_at: string | null
   created_at: string
 }
 
@@ -71,10 +74,10 @@ const typeConfig = {
 }
 
 const statusConfig = {
-  pending: { label: 'En attente', icon: Circle, color: 'text-slate-500' },
-  in_progress: { label: 'En cours', icon: Clock, color: 'text-blue-500' },
-  completed: { label: 'Terminée', icon: CheckCircle2, color: 'text-green-500' },
-  cancelled: { label: 'Annulée', icon: AlertCircle, color: 'text-red-500' }
+  pending: { label: 'En attente', icon: Circle, color: 'text-slate-400', badge: 'bg-slate-100 text-slate-600', next: 'in_progress' as Task['status'] },
+  in_progress: { label: 'En cours', icon: Clock, color: 'text-blue-500', badge: 'bg-blue-100 text-blue-700', next: 'completed' as Task['status'] },
+  completed: { label: 'Terminée', icon: CheckCircle2, color: 'text-green-500', badge: 'bg-green-100 text-green-700', next: 'pending' as Task['status'] },
+  cancelled: { label: 'Annulée', icon: AlertCircle, color: 'text-red-500', badge: 'bg-red-100 text-red-700', next: 'pending' as Task['status'] }
 }
 
 export default function TasksPage() {
@@ -121,69 +124,89 @@ export default function TasksPage() {
       return
     }
 
-    setSaving(true)
+    const taskData = {
+      title: formData.title.trim(),
+      description: formData.description.trim() || null,
+      type: formData.type,
+      priority: formData.priority,
+      due_date: formData.due_date || null
+    }
+
+    // --- OPTIMISTIC UPDATE ---
+    const previousTasks = [...tasks]
+    const tempId = editingTask ? editingTask.id : `temp-${Date.now()}`
+    const optimisticTask = {
+      ...taskData,
+      id: tempId,
+      status: editingTask ? editingTask.status : 'pending' as TaskStatus,
+      created_at: new Date().toISOString(),
+      completed_at: editingTask ? editingTask.completed_at : null
+    } as any
+
+    if (editingTask) {
+      setTasks(tasks.map(t => t.id === editingTask.id ? optimisticTask : t))
+    } else {
+      setTasks([optimisticTask, ...tasks])
+    }
+    
+    closeDialog()
+    // -------------------------
+
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      if (!userData.user) throw new Error('Non authentifié')
+      const result = editingTask 
+        ? await updateTask(editingTask.id, taskData)
+        : await createTask(taskData)
 
-      const taskData = {
-        title: formData.title.trim(),
-        description: formData.description.trim() || null,
-        type: formData.type,
-        priority: formData.priority,
-        due_date: formData.due_date || null,
-        user_id: userData.user.id
+      if (result.error) throw new Error(result.error)
+      
+      // Update with the real ID from the server
+      if (result.data) {
+        setTasks(prev => prev.map(t => t.id === tempId ? result.data! : t))
       }
-
-      if (editingTask) {
-        const { data, error } = await supabase
-          .from('tasks')
-          .update(taskData)
-          .eq('id', editingTask.id)
-          .select()
-          .single()
-
-        if (error) throw error
-        setTasks(tasks.map(t => t.id === editingTask.id ? data : t))
-        toast.success('Tâche modifiée!')
-      } else {
-        const { data, error } = await supabase
-          .from('tasks')
-          .insert({ ...taskData, status: 'pending' })
-          .select()
-          .single()
-
-        if (error) throw error
-        setTasks([data, ...tasks])
-        toast.success('Tâche créée!')
-      }
-
-      closeDialog()
+      
+      toast.success(editingTask ? 'Tâche modifiée!' : 'Tâche créée!')
     } catch (error: any) {
       console.error('Erreur:', error)
+      setTasks(previousTasks) // Rollback
       toast.error(error.message || 'Erreur lors de la sauvegarde')
-    } finally {
-      setSaving(false)
+      openEditDialog(optimisticTask) // Keep dialog context
     }
   }
 
+  // Cycle: pending → in_progress → completed → pending
   async function toggleTaskStatus(task: Task) {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed'
+    const next = statusConfig[task.status]?.next || 'pending'
+    await setTaskStatus(task, next)
+  }
+
+  async function setTaskStatus(task: Task, newStatus: TaskStatus) {
+    const previousTasks = [...tasks]
+    
+    // --- OPTIMISTIC UPDATE ---
+    setTasks(prev => prev.map(t => t.id === task.id ? { 
+      ...t, 
+      status: newStatus,
+      completed_at: newStatus === 'completed' ? new Date().toISOString() : null
+    } : t))
+    // -------------------------
 
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({
-          status: newStatus,
-          completed_at: newStatus === 'completed' ? new Date().toISOString() : null
-        })
-        .eq('id', task.id)
+      const result = await updateTask(task.id, { 
+        status: newStatus,
+        completed_at: newStatus === 'completed' ? new Date().toISOString() : null
+      })
 
-      if (error) throw error
-      setTasks(tasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t))
-      toast.success(newStatus === 'completed' ? 'Tâche terminée!' : 'Tâche réouverte')
+      if (result.error) throw new Error(result.error)
+
+      const labels: Record<TaskStatus, string> = {
+        pending: 'Tâche remise en attente',
+        in_progress: 'Tâche mise en cours',
+        completed: 'Tâche marquée terminée ✅',
+        cancelled: 'Tâche annulée'
+      }
+      toast.success(labels[newStatus])
     } catch (error: any) {
-      console.error('Erreur:', error)
+      setTasks(previousTasks) // Rollback
       toast.error('Erreur lors de la mise à jour')
     }
   }
@@ -191,16 +214,18 @@ export default function TasksPage() {
   async function deleteTask(taskId: string) {
     if (!confirm('Supprimer cette tâche?')) return
 
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId)
+    const previousTasks = [...tasks]
+    
+    // --- OPTIMISTIC UPDATE ---
+    setTasks(prev => prev.filter(t => t.id !== taskId))
+    // -------------------------
 
-      if (error) throw error
-      setTasks(tasks.filter(t => t.id !== taskId))
+    try {
+      const result = await deleteTaskAction(taskId)
+      if (result.error) throw new Error(result.error)
       toast.success('Tâche supprimée')
     } catch (error: any) {
+      setTasks(previousTasks) // Rollback
       console.error('Erreur:', error)
       toast.error('Erreur lors de la suppression')
     }
@@ -265,17 +290,15 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Tâches</h1>
-          <p className="text-muted-foreground">Gérez vos tâches et activités</p>
-        </div>
+      <PageHeader 
+        title="Tâches" 
+        description="Organisez vos priorités et ne manquez aucune action importante de votre journée."
+      >
         <Button onClick={openCreateDialog}>
           <Plus className="mr-2 h-4 w-4" />
           Nouvelle tâche
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -351,57 +374,113 @@ export default function TasksPage() {
                 const status = statusConfig[task.status]
                 const priority = priorityConfig[task.priority]
                 const StatusIcon = status.icon
+                const isOverdue = task.due_date && task.status !== 'completed' && new Date(task.due_date) < new Date()
 
                 return (
                   <div
                     key={task.id}
-                    className={`flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors ${task.status === 'completed' ? 'opacity-60' : ''
-                      }`}
+                    className={`flex items-center gap-3 p-4 rounded-lg border transition-all hover:shadow-sm ${
+                      task.status === 'completed'
+                        ? 'bg-muted/20 border-muted opacity-70'
+                        : task.status === 'in_progress'
+                        ? 'border-blue-200 bg-blue-50/30'
+                        : 'hover:bg-muted/50'
+                    }`}
                   >
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={() => toggleTaskStatus(task)}
-                        className={`${status.color} hover:scale-110 transition-transform`}
-                      >
-                        <StatusIcon className="h-5 w-5" />
-                      </button>
-                      <div>
-                        <p className={`font-medium ${task.status === 'completed' ? 'line-through' : ''}`}>
-                          {task.title}
-                        </p>
-                        {task.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-1">
-                            {task.description}
-                          </p>
+                    {/* Status toggle button — click to cycle */}
+                    <button
+                      onClick={() => toggleTaskStatus(task)}
+                      title={`Statut actuel : ${status.label}. Cliquer pour passer à : ${statusConfig[status.next].label}`}
+                      className={`shrink-0 rounded-full p-0.5 hover:scale-110 transition-transform ${status.color}`}
+                    >
+                      <StatusIcon className="h-5 w-5" />
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-medium truncate ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
+                        {task.title}
+                      </p>
+                      {task.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{task.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <Badge className={`text-[10px] px-2 py-0 ${status.badge}`}>{status.label}</Badge>
+                        <Badge variant="outline" className={`text-[10px] px-2 py-0 ${priority.color}`}>{priority.label}</Badge>
+                        {task.due_date && (
+                          <span className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
+                            <Calendar className="h-3 w-3" />
+                            {new Date(task.due_date).toLocaleDateString('fr-FR')}
+                            {isOverdue && ' (En retard)'}
+                          </span>
                         )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className={priority.color}>
-                            {priority.label}
-                          </Badge>
-                          {task.due_date && (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(task.due_date).toLocaleDateString('fr-FR')}
-                            </span>
-                          )}
-                        </div>
                       </div>
                     </div>
+
+                    {/* Quick status buttons */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {task.status !== 'in_progress' && task.status !== 'completed' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-blue-600 hover:bg-blue-50 text-xs"
+                          onClick={() => setTaskStatus(task, 'in_progress')}
+                        >
+                          <Clock className="mr-1 h-3 w-3" />
+                          En cours
+                        </Button>
+                      )}
+                      {task.status !== 'completed' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-green-600 hover:bg-green-50 text-xs"
+                          onClick={() => setTaskStatus(task, 'completed')}
+                        >
+                          <CheckCircle2 className="mr-1 h-3 w-3" />
+                          Terminée
+                        </Button>
+                      )}
+                      {task.status === 'completed' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-slate-500 hover:bg-slate-50 text-xs"
+                          onClick={() => setTaskStatus(task, 'pending')}
+                        >
+                          <Circle className="mr-1 h-3 w-3" />
+                          Réouvrir
+                        </Button>
+                      )}
+                    </div>
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setTaskStatus(task, 'pending')} disabled={task.status === 'pending'}>
+                          <Circle className="mr-2 h-4 w-4 text-slate-400" />
+                          En attente
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTaskStatus(task, 'in_progress')} disabled={task.status === 'in_progress'}>
+                          <Clock className="mr-2 h-4 w-4 text-blue-500" />
+                          En cours
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTaskStatus(task, 'completed')} disabled={task.status === 'completed'}>
+                          <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                          Terminée
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTaskStatus(task, 'cancelled')} disabled={task.status === 'cancelled'}>
+                          <AlertCircle className="mr-2 h-4 w-4 text-red-500" />
+                          Annulée
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openEditDialog(task)}>
                           <Edit2 className="mr-2 h-4 w-4" />
                           Modifier
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => deleteTask(task.id)}
-                        >
+                        <DropdownMenuItem className="text-destructive" onClick={() => deleteTask(task.id)}>
                           <Trash2 className="mr-2 h-4 w-4" />
                           Supprimer
                         </DropdownMenuItem>

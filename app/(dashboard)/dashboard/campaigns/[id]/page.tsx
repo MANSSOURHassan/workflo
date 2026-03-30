@@ -38,22 +38,6 @@ export default async function CampaignDetailsPage({
                             <ArrowLeft className="h-4 w-4" />
                         </Link>
                     </Button>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-2xl font-bold text-primary">{campaign.name}</h1>
-                            <Badge variant={
-                                campaign.status === 'completed' ? 'secondary' :
-                                    campaign.status === 'active' ? 'default' :
-                                        'outline'
-                            }>
-                                {campaign.status}
-                            </Badge>
-                        </div>
-                        <p className="text-muted-foreground flex items-center gap-2 text-sm mt-1">
-                            <Clock className="h-3 w-3" />
-                            Créée le {new Date(campaign.created_at).toLocaleDateString()}
-                        </p>
-                    </div>
                 </div>
             </div>
 

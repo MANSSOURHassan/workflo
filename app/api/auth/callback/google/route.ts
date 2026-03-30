@@ -10,23 +10,28 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code')
     const error = searchParams.get('error')
 
+    const host = request.headers.get('host') || 'localhost:3000'
+    const protocol = host.includes('localhost') ? 'http' : 'https'
+    const dynamicRedirectUri = `${protocol}://${host}/api/auth/callback/google`
+    const siteUrl = `${protocol}://${host}`
+
     // Gérer les erreurs de Google
     if (error) {
         console.error('Erreur Google OAuth:', error)
         return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/email?error=oauth_denied`
+            `${siteUrl}/dashboard/email?error=oauth_denied`
         )
     }
 
     if (!code) {
         return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/email?error=no_code`
+            `${siteUrl}/dashboard/email?error=no_code`
         )
     }
 
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
         return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/email?error=config_missing`
+            `${siteUrl}/dashboard/email?error=config_missing`
         )
     }
 
@@ -42,7 +47,7 @@ export async function GET(request: NextRequest) {
                 client_secret: GOOGLE_CLIENT_SECRET,
                 code,
                 grant_type: 'authorization_code',
-                redirect_uri: REDIRECT_URI,
+                redirect_uri: dynamicRedirectUri,
             }),
         })
 
@@ -50,7 +55,7 @@ export async function GET(request: NextRequest) {
             const errorData = await tokenResponse.json()
             console.error('Erreur token Google:', errorData)
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/email?error=token_exchange_failed`
+                `${siteUrl}/dashboard/email?error=token_exchange_failed`
             )
         }
 
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest) {
 
         if (!userInfoResponse.ok) {
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/email?error=user_info_failed`
+                `${siteUrl}/dashboard/email?error=user_info_failed`
             )
         }
 
@@ -79,7 +84,7 @@ export async function GET(request: NextRequest) {
 
         if (!user) {
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_SITE_URL}/auth/login?error=not_authenticated`
+                `${siteUrl}/auth/login?error=not_authenticated`
             )
         }
 
@@ -107,19 +112,19 @@ export async function GET(request: NextRequest) {
         if (dbError) {
             console.error('Erreur sauvegarde intégration:', dbError)
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/email?error=save_failed`
+                `${siteUrl}/dashboard/email?error=save_failed`
             )
         }
 
         // Succès ! Rediriger vers la page email
         return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/email?success=gmail_connected&email=${encodeURIComponent(googleEmail)}`
+            `${siteUrl}/dashboard/email?success=gmail_connected&email=${encodeURIComponent(googleEmail)}`
         )
 
     } catch (error) {
         console.error('Erreur callback Google:', error)
         return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/email?error=unknown`
+            `${siteUrl}/dashboard/email?error=unknown`
         )
     }
 }

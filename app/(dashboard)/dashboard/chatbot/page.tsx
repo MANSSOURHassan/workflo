@@ -26,12 +26,17 @@ import {
   Check,
   Loader2,
   Send,
-  User
+  User,
+  X,
+  Sparkles
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default function ChatbotPage() {
   const [isEnabled, setIsEnabled] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [activeTab, setActiveTab] = useState('appearance')
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     conversations: 0,
@@ -53,11 +58,16 @@ export default function ChatbotPage() {
     { id: '1', role: 'bot', content: 'Bonjour ! Comment puis-je vous aider ?' }
   ])
   const [previewInput, setPreviewInput] = useState('')
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const previewScrollRef = useRef<HTMLDivElement>(null)
+  const isLoadedRef = useRef(false)
 
   const supabase = createClient()
 
   useEffect(() => {
+    if (isLoadedRef.current) return
+    isLoadedRef.current = true
+    
     loadData()
   }, [])
 
@@ -68,7 +78,6 @@ export default function ChatbotPage() {
   }, [previewMessages])
 
   async function loadData() {
-    console.log('Chatbot: Début chargement...')
     setLoading(true)
     try {
       const { data: conversations, error: convError, count } = await supabase
@@ -76,19 +85,12 @@ export default function ChatbotPage() {
         .select('*', { count: 'exact', head: false })
 
       if (convError) {
-        console.error('Chatbot: Erreur stats brute:', convError)
-        console.log('Chatbot: Code stats:', convError?.code)
-        console.log('Chatbot: Message stats:', convError?.message)
-        console.log('Chatbot: Détails stats:', convError?.details)
-
         if (convError.code === '42P01') {
           toast.error('⚠️ Table "chatbot_conversations" manquante. Exécutez le script SQL.')
           return
         }
         throw convError
       }
-
-      console.log('Chatbot: Stats reçues, conversations:', count)
 
       setStats(prev => ({
         ...prev,
@@ -108,14 +110,14 @@ export default function ChatbotPage() {
       }
 
       if (integration && integration.settings) {
-        console.log('Chatbot: Paramètres chargés')
         setSettings(prev => ({ ...prev, ...integration.settings }))
         setIsEnabled(integration.is_active)
         setPreviewMessages([{ id: '1', role: 'bot', content: integration.settings.welcomeMessage || 'Bonjour !' }])
       }
     } catch (e: any) {
-      console.error('Chatbot - Erreur attrapée:', e)
-      const errorMsg = e.message || e.details || e.code || "Erreur inconnue"
+      if (e.name === 'AbortError' || e.message?.includes('aborted')) return
+      
+      const errorMsg = e.message || "Erreur lors du chargement"
       toast.error(`Erreur chatbot: ${errorMsg}`)
     } finally {
       setLoading(false)
@@ -144,13 +146,8 @@ export default function ChatbotPage() {
       if (error) throw error
       toast.success("Paramètres enregistrés avec succès")
     } catch (error: any) {
-      console.error('Chatbot - Erreur sauvegarde brute:', error)
-      console.log('Chatbot - Code erreur sauvegarde:', error?.code)
-      console.log('Assistant - Message erreur sauvegarde:', error?.message)
-      console.log('Assistant - Détails erreur sauvegarde:', error?.details)
-
-      const errorMsg = error.message || error.details || (error.code ? `Code: ${error.code}` : "Inconnue")
-      toast.error(`Erreur lors de l'enregistrement: ${errorMsg}`)
+      const errorMsg = error.message || "Erreur lors de l'enregistrement"
+      toast.error(`Erreur : ${errorMsg}`)
     }
   }
 
@@ -190,39 +187,41 @@ export default function ChatbotPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-primary">Widget Chatbot</h1>
-            <Badge className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white border-none">
-              IA Propulsé
-            </Badge>
-          </div>
-          <p className="text-muted-foreground">
-            Configurez et intégrez votre assistant virtuel intelligent
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
+      <PageHeader 
+        title="Widget Chatbot IA" 
+        description="Gérez votre assistant virtuel intelligent et personnalisez son apparence pour l'intégrer sur votre site web."
+      >
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-2">
             <Switch
-              id="chatbot-enabled"
+              id="chatbot-enabled-header"
               checked={isEnabled}
               onCheckedChange={setIsEnabled}
             />
-            <Label htmlFor="chatbot-enabled" className="cursor-pointer">
+            <Label htmlFor="chatbot-enabled-header" className="cursor-pointer font-medium text-xs whitespace-nowrap">
               {isEnabled ? 'Activé' : 'Désactivé'}
             </Label>
           </div>
-          <Button variant="outline" onClick={saveSettings} className="border-primary/20 hover:bg-primary/5">
+          <Button variant="outline" onClick={saveSettings}>
+            <Settings className="mr-2 h-4 w-4" />
             Sauvegarder
           </Button>
-          <Button className="bg-primary hover:shadow-lg hover:shadow-primary/20 transition-all">
-            <ExternalLink className="mr-2 h-4 w-4" />
+          <Button 
+            className="bg-gradient-to-r from-primary to-indigo-600 hover:shadow-lg hover:shadow-primary/20 transition-all font-semibold border-none group"
+            onClick={() => {
+              setActiveTab('appearance')
+              setIsPreviewOpen(true)
+              setTimeout(() => {
+                const simulator = document.getElementById('chat-simulator')
+                if (simulator) simulator.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }, 200)
+            }}
+          >
+            <Sparkles className="mr-2 h-4 w-4 group-hover:animate-pulse" />
             Aperçu live
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -249,7 +248,7 @@ export default function ChatbotPage() {
       </div>
 
       {/* Configuration */}
-      <Tabs defaultValue="appearance" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-muted/50 p-1 rounded-2xl w-fit">
           <TabsTrigger value="general" className="rounded-xl px-6">
             <Settings className="mr-2 h-4 w-4" />
@@ -393,69 +392,10 @@ export default function ChatbotPage() {
             </div>
 
             {/* Interactive Preview */}
-            <div className="md:col-span-7">
+            <div className="md:col-span-7" id="chat-simulator">
               <div className="relative h-[550px] w-full bg-slate-100 dark:bg-slate-900 rounded-3xl border-8 border-white dark:border-slate-800 shadow-2xl overflow-hidden">
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
                   Simulateur Interactif
-                </div>
-
-                {/* Bot UI */}
-                <div className={`absolute right-6 bottom-6 w-80 h-[450px] shadow-2xl border border-border/50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-8 duration-700 ${settings.visualStyle === 'modern' ? 'rounded-2xl' : 'rounded-sm'} ${settings.theme === 'dark' ? 'bg-slate-900 text-white border-slate-700' : settings.theme === 'light' ? 'bg-white text-slate-900 border-slate-200' : 'bg-background'}`}>
-                  {/* Bot Header */}
-                  <div className={`p-4 text-white flex items-center justify-between ${settings.visualStyle === 'modern' ? '' : 'border-b border-black/10'}`} style={{ backgroundColor: settings.primaryColor }}>
-                    <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner ${settings.visualStyle === 'modern' ? 'rounded-xl' : 'rounded-sm'}`}>
-                        <Bot className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">{settings.botName}</p>
-                        <p className="text-[10px] opacity-80 flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
-                          En ligne
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bot Messages */}
-                  <div
-                    ref={previewScrollRef}
-                    className={`flex-1 p-4 overflow-y-auto space-y-4 ${settings.theme === 'dark' ? 'bg-slate-950/80' : settings.theme === 'light' ? 'bg-slate-50' : 'bg-slate-50 dark:bg-slate-950/50'}`}
-                  >
-                    {previewMessages.map((msg) => (
-                      <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
-                        <div
-                          className={`max-w-[80%] p-3 text-xs shadow-sm ${msg.role === 'user'
-                            ? `bg-primary text-primary-foreground ${settings.visualStyle === 'modern' ? 'rounded-2xl rounded-tr-none' : 'rounded-sm rounded-tr-none'}`
-                            : `${settings.theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-100' : settings.theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-white dark:bg-slate-800 border text-foreground'} ${settings.visualStyle === 'modern' ? 'rounded-2xl rounded-tl-none' : 'rounded-sm rounded-tl-none'}`
-                            }`}
-                        >
-                          {msg.content}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Bot Input */}
-                  <div className={`p-3 border-t ${settings.theme === 'dark' ? 'bg-slate-900 border-slate-800' : settings.theme === 'light' ? 'bg-white border-slate-200' : 'bg-background'}`}>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Tapez un message..."
-                        value={previewInput}
-                        onChange={(e) => setPreviewInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handlePreviewSend()}
-                        className={`text-xs h-9 border-none focus-visible:ring-1 focus-visible:ring-primary/30 ${settings.visualStyle === 'modern' ? 'rounded-xl' : 'rounded-sm'} ${settings.theme === 'dark' ? 'bg-slate-800 text-white placeholder:text-slate-400' : settings.theme === 'light' ? 'bg-slate-100 text-slate-900 placeholder:text-slate-500' : 'bg-muted'}`}
-                      />
-                      <Button
-                        size="icon"
-                        onClick={handlePreviewSend}
-                        className={`h-9 w-9 shrink-0 ${settings.visualStyle === 'modern' ? 'rounded-xl' : 'rounded-sm'}`}
-                        style={{ backgroundColor: settings.primaryColor }}
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Simulated Website Content */}
@@ -465,6 +405,107 @@ export default function ChatbotPage() {
                   <div className="h-4 w-3/4 bg-slate-300 rounded-lg"></div>
                   <div className="h-32 w-full bg-slate-200 rounded-2xl"></div>
                 </div>
+
+                {/* Bot floating button with tooltip-like hint */}
+                {!isPreviewOpen && (
+                  <div className="absolute right-6 bottom-6 flex flex-col items-end gap-3">
+                    <motion.div 
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-xl text-xs font-medium border border-border/50 max-w-[200px]"
+                    >
+                      {settings.welcomeMessage}
+                    </motion.div>
+                    <button
+                      onClick={() => setIsPreviewOpen(true)}
+                      className={`h-14 w-14 shadow-2xl flex items-center justify-center text-white hover:scale-110 transition-all animate-in zoom-in duration-500 hover:rotate-12 ${
+                        settings.visualStyle === 'modern' ? 'rounded-2xl' : 'rounded-full'
+                      }`}
+                      style={{ backgroundColor: settings.primaryColor }}
+                    >
+                      <MessageSquare className="h-7 w-7" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Bot UI */}
+                {isPreviewOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    className={`absolute right-6 bottom-6 w-85 h-[480px] shadow-2xl border border-border/30 flex flex-col overflow-hidden ${settings.visualStyle === 'modern' ? 'rounded-3xl' : 'rounded-sm'} ${settings.theme === 'dark' ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}`}
+                  >
+                    {/* Bot Header */}
+                    <div className={`p-4 text-white flex items-center justify-between ${settings.visualStyle === 'modern' ? '' : 'border-b border-black/10'}`} style={{ backgroundColor: settings.primaryColor }}>
+                      <div className="flex items-center gap-3">
+                        <div className={`h-10 w-10 bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner ${settings.visualStyle === 'modern' ? 'rounded-xl' : 'rounded-sm'}`}>
+                          <Bot className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm">{settings.botName}</p>
+                          <p className="text-[10px] opacity-80 flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+                            En ligne
+                          </p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setIsPreviewOpen(false)} 
+                        className="text-white/80 hover:text-white transition-colors p-1"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    {/* Bot Messages */}
+                    <div
+                      ref={previewScrollRef}
+                      className={`flex-1 p-5 overflow-y-auto space-y-6 ${settings.theme === 'dark' ? 'bg-slate-950/90' : 'bg-slate-50'}`}
+                    >
+                      <AnimatePresence initial={false}>
+                        {previewMessages.map((msg) => (
+                          <motion.div 
+                            key={msg.id} 
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-[85%] p-3.5 text-xs shadow-sm leading-relaxed ${msg.role === 'user'
+                                ? `bg-primary text-primary-foreground ${settings.visualStyle === 'modern' ? 'rounded-2xl rounded-tr-none' : 'rounded-sm rounded-tr-none'}`
+                                : `${settings.theme === 'dark' ? 'bg-slate-800 text-slate-100' : 'bg-white text-slate-900 border border-slate-100'} ${settings.visualStyle === 'modern' ? 'rounded-2xl rounded-tl-none' : 'rounded-sm rounded-tl-none'}`
+                                }`}
+                              style={msg.role === 'user' ? { backgroundColor: settings.primaryColor } : {}}
+                            >
+                              {msg.content}
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Bot Input */}
+                    <div className={`p-3 border-t ${settings.theme === 'dark' ? 'bg-slate-900 border-slate-800' : settings.theme === 'light' ? 'bg-white border-slate-200' : 'bg-background'}`}>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Tapez un message..."
+                          value={previewInput}
+                          onChange={(e) => setPreviewInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handlePreviewSend()}
+                          className={`text-xs h-9 border-none focus-visible:ring-1 focus-visible:ring-primary/30 ${settings.visualStyle === 'modern' ? 'rounded-xl' : 'rounded-sm'} ${settings.theme === 'dark' ? 'bg-slate-800 text-white placeholder:text-slate-400' : settings.theme === 'light' ? 'bg-slate-100 text-slate-900 placeholder:text-slate-500' : 'bg-muted'}`}
+                        />
+                        <Button
+                          size="icon"
+                          onClick={handlePreviewSend}
+                          className={`h-9 w-9 shrink-0 ${settings.visualStyle === 'modern' ? 'rounded-xl' : 'rounded-sm'}`}
+                          style={{ backgroundColor: settings.primaryColor }}
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
             </div>
           </div>

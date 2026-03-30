@@ -24,10 +24,10 @@ import {
 } from "@/components/ui/select"
 import { createDeal, createPipeline, createDefaultPipelineWithStages } from "@/lib/actions/pipeline"
 import { toast } from "sonner"
-import type { Pipeline } from "@/lib/types/database"
+import type { Pipeline, PipelineStage } from "@/lib/types/database"
 
 interface PipelineHeaderProps {
-  pipeline: Pipeline | null | undefined
+  pipeline: (Pipeline & { stages: PipelineStage[] }) | null | undefined
   onPipelineUpdated: () => void
 }
 
@@ -69,7 +69,8 @@ export function PipelineHeader({ pipeline, onPipelineUpdated }: PipelineHeaderPr
       const result = await createDeal({
         ...dealData,
         pipeline_id: pipeline.id,
-        value: dealData.value ? parseFloat(dealData.value) : undefined,
+        value: dealData.value ? parseFloat(dealData.value) : 0,
+        stage_id: pipeline.stages?.[0]?.id || "", // Default to first stage
       })
       if (result.error) {
         toast.error(result.error)
@@ -95,13 +96,7 @@ export function PipelineHeader({ pipeline, onPipelineUpdated }: PipelineHeaderPr
 
   if (!pipeline) {
     return (
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Pipeline de ventes</h1>
-          <p className="text-muted-foreground">
-            Gerez vos opportunites commerciales avec une vue Kanban
-          </p>
-        </div>
+      <div className="flex justify-end w-full">
         <Button onClick={handleCreatePipeline} disabled={isLoading}>
           <LayoutGrid className="mr-2 h-4 w-4" />
           {isLoading ? "Creation..." : "Creer mon pipeline"}
@@ -111,13 +106,7 @@ export function PipelineHeader({ pipeline, onPipelineUpdated }: PipelineHeaderPr
   }
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">{pipeline.name}</h1>
-        <p className="text-muted-foreground">
-          Gerez vos opportunites commerciales avec une vue Kanban
-        </p>
-      </div>
+    <div className="flex justify-end w-full">
       
       <div className="flex items-center gap-2">
         <Dialog open={openDeal} onOpenChange={setOpenDeal}>

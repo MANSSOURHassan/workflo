@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { PLANS, PlanType } from '@/lib/config/plans';
 
-export async function getUserPlan() {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export async function getUserPlan(supabaseClient?: any, userObj?: any) {
+    const supabase = supabaseClient || await createClient();
+    const user = userObj || (await supabase.auth.getUser()).data.user;
 
     if (!user) return null;
 
@@ -17,43 +17,33 @@ export async function getUserPlan() {
     return PLANS[planType];
 }
 
-export async function checkLimit(type: 'prospects' | 'users' | 'emails') {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export async function checkLimit(type: 'prospects' | 'users' | 'emails', supabaseClient?: any, userObj?: any) {
+    const supabase = supabaseClient || await createClient();
+    const user = userObj || (await supabase.auth.getUser()).data.user;
 
     if (!user) return { allowed: false, error: 'Utilisateur non connecté' };
 
-    const plan = await getUserPlan();
+    // Run both queries in parallel to save time
+    const [plan, countData] = await Promise.all([
+        getUserPlan(supabase, user),
+        type === 'prospects' 
+            ? supabase.from('prospects').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+            : type === 'users'
+            ? supabase.from('team_members').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+            : null // Emails check handles separately due to date filter
+    ]);
+
     if (!plan) return { allowed: false, error: 'Plan non trouvé' };
 
-    if (type === 'prospects') {
-        const { count, error } = await supabase
-            .from('prospects')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id);
-
-        if (error) return { allowed: false, error: 'Erreur lors de la vérification des prospects' };
-
-        if (count !== null && count >= plan.maxProspects) {
+    if (type === 'prospects' || type === 'users') {
+        const { count, error } = countData!;
+        if (error) return { allowed: false, error: 'Erreur lors de la vérification des limites' };
+        
+        const maxLimit = type === 'prospects' ? plan.maxProspects : plan.maxUsers;
+        if (count !== null && count >= maxLimit) {
             return {
                 allowed: false,
-                error: `Limite de prospects atteinte pour le plan ${plan.name} (${plan.maxProspects}). Veuillez passer au plan supérieur.`
-            };
-        }
-    }
-
-    if (type === 'users') {
-        const { count, error } = await supabase
-            .from('team_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id);
-
-        if (error) return { allowed: false, error: 'Erreur lors de la vérification de l\'équipe' };
-
-        if (count !== null && count >= plan.maxUsers) {
-            return {
-                allowed: false,
-                error: `Limite de membres d'équipe atteinte pour le plan ${plan.name} (${plan.maxUsers}). Veuillez passer au plan supérieur.`
+                error: `Limite de ${type === 'prospects' ? 'prospects' : "membres d'équipe"} atteinte pour le plan ${plan.name} (${maxLimit}). Veuillez passer au plan supérieur.`
             };
         }
     }

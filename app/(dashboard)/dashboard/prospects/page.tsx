@@ -6,6 +6,7 @@ import { ProspectsFilters } from '@/components/prospects/prospects-filters'
 import { ProspectsTable } from '@/components/prospects/prospects-table'
 import { ProspectsPagination } from '@/components/prospects/prospects-pagination'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/dashboard/page-header'
 import type { ProspectStatus, ProspectSource } from '@/lib/types/database'
 
 interface ProspectsPageProps {
@@ -42,6 +43,10 @@ export default async function ProspectsPage({ searchParams }: ProspectsPageProps
 
   return (
     <div className="space-y-6">
+      <PageHeader 
+        title="Prospects" 
+        description="Gérez et suivez vos contacts commerciaux et clients potentiels en un coup d'œil."
+      />
       <ProspectsHeader stats={statsResult.data} />
 
       <ProspectsFilters
@@ -58,6 +63,7 @@ export default async function ProspectsPage({ searchParams }: ProspectsPageProps
           teamMembers={teamResult.data || []}
           sortBy={params.sortBy}
           sortOrder={params.sortOrder}
+          error={prospectsResult.error}
         />
       </Suspense>
 
@@ -68,6 +74,7 @@ export default async function ProspectsPage({ searchParams }: ProspectsPageProps
           total={prospectsResult.count || 0}
         />
       )}
+
     </div>
   )
 }

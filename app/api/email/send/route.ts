@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Champs manquants' }, { status: 400 })
         }
 
-        // Récupérer l'intégration Gmail active
         const { data: integration, error: integrationError } = await supabase
             .from('email_integrations')
             .select('*')
@@ -26,7 +25,7 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (integrationError || !integration) {
-            return NextResponse.json({ error: 'Aucune intégration Gmail active' }, { status: 404 })
+            return NextResponse.json({ error: 'Aucune intégration Gmail active. Veuillez connecter votre compte Google dans les paramètres ou sur la page Emails.' }, { status: 400 })
         }
 
         let accessToken = integration.access_token

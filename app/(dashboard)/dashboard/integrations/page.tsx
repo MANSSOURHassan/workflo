@@ -25,10 +25,13 @@ import {
   Loader2,
   Sparkles,
   Zap,
-  Trash2
+  Trash2,
+  BrainCircuit,
+  AlertTriangle
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 // Types
 interface Integration {
@@ -45,18 +48,18 @@ interface Integration {
 
 // Intégrations IA populaires
 const aiIntegrations = [
-  { id: 'openai', name: 'OpenAI / ChatGPT', description: 'GPT-4, DALL-E, Whisper - IA conversationnelle et génération', category: 'IA', logo: '🤖', color: 'bg-emerald-500' },
-  { id: 'anthropic', name: 'Claude (Anthropic)', description: 'Assistant IA avancé pour conversations et analyses', category: 'IA', logo: '🧠', color: 'bg-orange-500' },
-  { id: 'google-ai', name: 'Google AI / Gemini', description: 'Gemini Pro, PaLM - Solutions IA de Google', category: 'IA', logo: '✨', color: 'bg-blue-500' },
-  { id: 'midjourney', name: 'Midjourney', description: 'Génération d\'images artistiques par IA', category: 'IA', logo: '🎨', color: 'bg-purple-500' },
-  { id: 'stable-diffusion', name: 'Stable Diffusion', description: 'Génération d\'images open source', category: 'IA', logo: '🖼️', color: 'bg-pink-500' },
-  { id: 'elevenlabs', name: 'ElevenLabs', description: 'Synthèse vocale et clonage de voix IA', category: 'IA', logo: '🎙️', color: 'bg-indigo-500' },
-  { id: 'huggingface', name: 'Hugging Face', description: 'Accès à des milliers de modèles IA', category: 'IA', logo: '🤗', color: 'bg-yellow-500' },
-  { id: 'replicate', name: 'Replicate', description: 'Exécutez des modèles ML dans le cloud', category: 'IA', logo: '⚡', color: 'bg-cyan-500' },
-  { id: 'cohere', name: 'Cohere', description: 'NLP et génération de texte entreprise', category: 'IA', logo: '📝', color: 'bg-rose-500' },
-  { id: 'jasper', name: 'Jasper AI', description: 'Rédaction marketing automatisée', category: 'IA', logo: '✍️', color: 'bg-violet-500' },
-  { id: 'copy-ai', name: 'Copy.ai', description: 'Génération de contenu marketing', category: 'IA', logo: '📄', color: 'bg-teal-500' },
-  { id: 'writesonic', name: 'Writesonic', description: 'Création de contenu IA pour entreprises', category: 'IA', logo: '🚀', color: 'bg-amber-500' },
+  { id: 'openai', name: 'OpenAI / ChatGPT', description: 'GPT-4, DALL-E, Whisper - IA conversationnelle et génération', category: 'AI', logo: '🤖', color: 'bg-emerald-500' },
+  { id: 'anthropic', name: 'Claude (Anthropic)', description: 'Assistant IA avancé pour conversations et analyses', category: 'AI', logo: '🧠', color: 'bg-orange-500' },
+  { id: 'google-ai', name: 'Google AI / Gemini', description: 'Gemini Pro, PaLM - Solutions IA de Google', category: 'AI', logo: '✨', color: 'bg-blue-500' },
+  { id: 'midjourney', name: 'Midjourney', description: 'Génération d\'images artistiques par IA', category: 'AI', logo: '🎨', color: 'bg-purple-500' },
+  { id: 'stable-diffusion', name: 'Stable Diffusion', description: 'Génération d\'images open source', category: 'AI', logo: '🖼️', color: 'bg-pink-500' },
+  { id: 'elevenlabs', name: 'ElevenLabs', description: 'Synthèse vocale et clonage de voix IA', category: 'AI', logo: '🎙️', color: 'bg-indigo-500' },
+  { id: 'huggingface', name: 'Hugging Face', description: 'Accès à des milliers de modèles IA', category: 'AI', logo: '🤗', color: 'bg-yellow-500' },
+  { id: 'replicate', name: 'Replicate', description: 'Exécutez des modèles ML dans le cloud', category: 'AI', logo: '⚡', color: 'bg-cyan-500' },
+  { id: 'cohere', name: 'Cohere', description: 'NLP et génération de texte entreprise', category: 'AI', logo: '📝', color: 'bg-rose-500' },
+  { id: 'jasper', name: 'Jasper AI', description: 'Rédaction marketing automatisée', category: 'AI', logo: '✍️', color: 'bg-violet-500' },
+  { id: 'copy-ai', name: 'Copy.ai', description: 'Génération de contenu marketing', category: 'AI', logo: '📄', color: 'bg-teal-500' },
+  { id: 'writesonic', name: 'Writesonic', description: 'Création de contenu IA pour entreprises', category: 'AI', logo: '🚀', color: 'bg-amber-500' },
 ]
 
 // Automatisations
@@ -72,13 +75,13 @@ const automationIntegrations = [
 // Autres intégrations
 const otherIntegrations = [
   { id: 'slack', name: 'Slack', description: 'Notifications dans vos canaux Slack', category: 'Communication', logo: '💬', color: 'bg-purple-600' },
-  { id: 'google-calendar', name: 'Google Calendar', description: 'Synchronisez vos rendez-vous', category: 'Productivité', logo: '📅', color: 'bg-blue-500' },
+  { id: 'google-calendar', name: 'Google Calendar', description: 'Synchronisez vos rendez-vous', category: 'Productivity', logo: '📅', color: 'bg-blue-500' },
   { id: 'gmail', name: 'Gmail', description: 'Envoyez des emails depuis Gmail', category: 'Email', logo: '✉️', color: 'bg-red-500' },
   { id: 'hubspot', name: 'HubSpot', description: 'Synchronisez vos contacts CRM', category: 'CRM', logo: '🟠', color: 'bg-orange-500' },
   { id: 'salesforce', name: 'Salesforce', description: 'Intégration Salesforce CRM', category: 'CRM', logo: '☁️', color: 'bg-blue-600' },
-  { id: 'stripe', name: 'Stripe', description: 'Gérez vos paiements', category: 'Paiement', logo: '💳', color: 'bg-indigo-500' },
-  { id: 'notion', name: 'Notion', description: 'Synchronisez notes et documents', category: 'Productivité', logo: '📓', color: 'bg-slate-700' },
-  { id: 'airtable', name: 'Airtable', description: 'Base de données collaborative', category: 'Productivité', logo: '📊', color: 'bg-teal-500' },
+  { id: 'stripe', name: 'Stripe', description: 'Gérez vos paiements', category: 'Payment', logo: '💳', color: 'bg-indigo-500' },
+  { id: 'notion', name: 'Notion', description: 'Synchronisez notes et documents', category: 'Productivity', logo: '📓', color: 'bg-slate-700' },
+  { id: 'airtable', name: 'Airtable', description: 'Base de données collaborative', category: 'Productivity', logo: '📊', color: 'bg-teal-500' },
   { id: 'twilio', name: 'Twilio', description: 'SMS et communications', category: 'Communication', logo: '📱', color: 'bg-red-600' },
   { id: 'sendgrid', name: 'SendGrid', description: 'Envoi d\'emails transactionnels', category: 'Email', logo: '📧', color: 'bg-blue-400' },
   { id: 'mailchimp', name: 'Mailchimp', description: 'Marketing email automatisé', category: 'Email', logo: '🐵', color: 'bg-yellow-400' },
@@ -87,7 +90,17 @@ const otherIntegrations = [
 
 const allAvailableIntegrations = [...aiIntegrations, ...automationIntegrations, ...otherIntegrations]
 
-const categories = ['Tous', 'IA', 'Automation', 'Communication', 'Productivité', 'Email', 'CRM', 'Paiement', 'Development']
+const categories = [
+  { id: 'Tous', label: 'Tous' },
+  { id: 'AI', label: 'IA' },
+  { id: 'Automation', label: 'Automation' },
+  { id: 'Communication', label: 'Communication' },
+  { id: 'Productivity', label: 'Productivité' },
+  { id: 'Email', label: 'Email' },
+  { id: 'CRM', label: 'CRM' },
+  { id: 'Payment', label: 'Paiement' },
+  { id: 'Development', label: 'Development' }
+]
 
 export default function IntegrationsPage() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -118,8 +131,11 @@ export default function IntegrationsPage() {
         .order('created_at', { ascending: false })
 
       if (error) {
-        // Table might not exist yet - this is OK, just show empty state
-        console.warn('Table integrations non trouvée. Exécutez missing-tables.sql dans Supabase.')
+        if (error.code === '42P01') {
+          console.warn('Table integrations non trouvée dans Supabase.')
+        } else {
+          console.error('Erreur chargement intégrations:', error)
+        }
         setConnectedIntegrations([])
         return
       }
@@ -140,7 +156,7 @@ export default function IntegrationsPage() {
       const { data: userData } = await supabase.auth.getUser()
       if (!userData.user) throw new Error('Non authentifié')
 
-      let data, error
+      let data: any, error: any
 
       if (isEditMode && currentIntegrationId) {
         // Update existing integration
@@ -191,12 +207,18 @@ export default function IntegrationsPage() {
       }
 
       if (error) {
-        // Check if table doesn't exist
-        if (error.code === '42P01' || error.message?.includes('relation') || !error.message) {
-          toast.error('⚠️ Table "integrations" non trouvée. Exécutez le script missing-tables.sql dans Supabase Dashboard > SQL Editor')
+        // Log raw error for debugging
+        console.error('Integrations Error:', error)
+        
+        // Specific message for missing table (PostgreSQL code 42P01)
+        if (error.code === '42P01' || error.message?.includes('relation "integrations" does not exist')) {
+          toast.error('⚠️ Table "integrations" non trouvée dans Supabase. Veuillez exécuter le SQL de création.')
           return
         }
-        throw error
+        
+        // Generic but detailed message for other errors (RLS, etc)
+        toast.error(`Erreur ${error.code || ''}: ${error.message || 'Échec de connexion'}`)
+        return
       }
 
       setIsConnectDialogOpen(false)
@@ -279,7 +301,7 @@ export default function IntegrationsPage() {
 
   const filteredIntegrations = allAvailableIntegrations.filter(integration => {
     const matchesSearch = integration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      integration.description.toLowerCase().includes(searchQuery.toLowerCase())
+       integration.description.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = selectedCategory === 'Tous' || integration.category === selectedCategory
     return matchesSearch && matchesCategory
   })
@@ -287,6 +309,10 @@ export default function IntegrationsPage() {
   // We filter available integrations correctly now
   // For available integrations, exclude already connected providers
   const availableIntegrations = filteredIntegrations.filter(i => !connectedProviders.includes(i.id))
+
+  const getCategoryLabel = (catId: string) => {
+    return categories.find(c => c.id.toLowerCase() === catId.toLowerCase())?.label || catId
+  }
 
   if (loading) {
     return (
@@ -298,15 +324,56 @@ export default function IntegrationsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Connexions & Intégrations</h1>
-          <p className="text-muted-foreground">
-            Connectez l'IA et automatisez votre workflow avec +30 intégrations
-          </p>
-        </div>
-      </div>
+      <PageHeader 
+        title="Intégrations & Connecteurs" 
+        description="Connectez vos outils préférés, configurez vos clés API IA et automatisez vos flux de travail entre différentes plateformes."
+      />
+
+      {/* AI Setup Banner */}
+      {(() => {
+        const hasAI = connectedIntegrations.some(i =>
+          ['openai', 'anthropic', 'google-ai'].includes(i.provider) && i.is_active
+        )
+        const activeProvider = connectedIntegrations.find(i => ['openai', 'anthropic', 'google-ai'].includes(i.provider) && i.is_active)
+        return hasAI ? (
+          <Card className="border-green-200 bg-green-50/50">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100">
+                  <BrainCircuit className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-green-800">Assistant IA activé ✅</p>
+                  <p className="text-sm text-green-700">
+                    Fournisseur actif : <strong>{activeProvider?.name}</strong> — L'Assistant IA et le Widget utilisent votre clé personnelle.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-orange-200 bg-orange-50/50">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100">
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-orange-800">Assistant IA non configuré</p>
+                  <p className="text-sm text-orange-700">
+                    Pour utiliser l'Assistant IA et le Widget, connectez <strong>OpenAI</strong>, <strong>Claude (Anthropic)</strong> ou <strong>Gemini</strong> avec votre propre clé API ci-dessous.
+                  </p>
+                </div>
+                <Button size="sm" className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white"
+                  onClick={() => { setSelectedCategory('IA'); setSearchQuery('') }}>
+                  <Sparkles className="mr-2 h-3 w-3" />
+                  Configurer l'IA
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -379,19 +446,18 @@ export default function IntegrationsPage() {
               />
             </div>
 
-            {/* Category Filters */}
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
                 <Button
-                  key={category}
-                  variant={selectedCategory === category ? 'default' : 'outline'}
+                  key={category.id}
+                  variant={selectedCategory === category.id ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setSelectedCategory(category)}
-                  className={selectedCategory === category ? '' : 'bg-transparent'}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={selectedCategory === category.id ? '' : 'bg-transparent'}
                 >
-                  {category === 'IA' && <Sparkles className="mr-1 h-3 w-3" />}
-                  {category === 'Automation' && <Zap className="mr-1 h-3 w-3" />}
-                  {category}
+                  {category.id === 'AI' && <Sparkles className="mr-1 h-3 w-3" />}
+                  {category.id === 'Automation' && <Zap className="mr-1 h-3 w-3" />}
+                  {category.label}
                 </Button>
               ))}
             </div>
@@ -417,7 +483,7 @@ export default function IntegrationsPage() {
                         <span className="text-3xl">{integrationInfo?.logo || '🔌'}</span>
                         <div>
                           <p className="font-semibold">{integration.name}</p>
-                          <Badge variant="secondary" className="text-xs">{integration.provider_category}</Badge>
+                          <Badge variant="secondary" className="text-xs">{getCategoryLabel(integration.provider_category)}</Badge>
                         </div>
                       </div>
                       <Switch
@@ -454,7 +520,7 @@ export default function IntegrationsPage() {
       )}
 
       {/* AI Integrations Section */}
-      {(selectedCategory === 'Tous' || selectedCategory === 'IA') && (
+      {(selectedCategory === 'Tous' || selectedCategory === 'AI') && (
         <div>
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-600" />
@@ -474,7 +540,7 @@ export default function IntegrationsPage() {
                       </div>
                       <div>
                         <p className="font-semibold">{integration.name}</p>
-                        <Badge variant="outline" className="text-xs">IA</Badge>
+                        <Badge variant="outline" className="text-xs">{getCategoryLabel('AI')}</Badge>
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{integration.description}</p>
@@ -534,7 +600,7 @@ export default function IntegrationsPage() {
       )}
 
       {/* Other Integrations Section */}
-      {availableIntegrations.filter(i => i.category !== 'IA' && i.category !== 'Automation').length > 0 && (
+      {availableIntegrations.filter(i => i.category !== 'AI' && i.category !== 'Automation').length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-4">Autres intégrations</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -552,7 +618,7 @@ export default function IntegrationsPage() {
                       </div>
                       <div>
                         <p className="font-semibold">{integration.name}</p>
-                        <Badge variant="outline" className="text-xs">{integration.category}</Badge>
+                        <Badge variant="outline" className="text-xs">{getCategoryLabel(integration.category)}</Badge>
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{integration.description}</p>
@@ -617,14 +683,35 @@ export default function IntegrationsPage() {
               <Input
                 id="api-key"
                 type="password"
-                placeholder="sk-..."
+                placeholder={selectedIntegration?.id === 'openai' ? 'sk-proj-...' : selectedIntegration?.id === 'anthropic' ? 'sk-ant-...' : 'AIza...'}
                 value={apiKeyInput}
                 onChange={(e) => setApiKeyInput(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
-                Entrez votre clé API pour activer les fonctionnalités avancées.
-                {isEditMode && " Laissez vide pour conserver la clé actuelle."}
-              </p>
+              {selectedIntegration && (
+                <div className="text-xs text-muted-foreground space-y-1">
+                  {selectedIntegration.id === 'openai' && (
+                    <>
+                      <p>🔑 Obtenez votre clé sur <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-primary underline">platform.openai.com/api-keys</a></p>
+                      <p className="text-green-700 font-medium">⭐ Recommandé pour l'assistant IA — utilisera GPT-4o mini</p>
+                    </>
+                  )}
+                  {selectedIntegration.id === 'anthropic' && (
+                    <>
+                      <p>🔑 Obtenez votre clé sur <a href="https://console.anthropic.com/" target="_blank" rel="noreferrer" className="text-primary underline">console.anthropic.com</a></p>
+                      <p>Utilisera Claude 3 Haiku (rapide et économique)</p>
+                    </>
+                  )}
+                  {selectedIntegration.id === 'google-ai' && (
+                    <>
+                      <p>🔑 Obtenez votre clé sur <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-primary underline">aistudio.google.com</a></p>
+                      <p>Utilisera Gemini 1.5 Flash (gratuit jusqu'à un certain quota)</p>
+                    </>
+                  )}
+                  {!['openai','anthropic','google-ai'].includes(selectedIntegration.id) && (
+                    <p>Entrez votre clé API pour activer les fonctionnalités avancées.{isEditMode && " Laissez vide pour conserver la clé actuelle."}</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

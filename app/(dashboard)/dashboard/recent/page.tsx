@@ -13,19 +13,6 @@ export default async function RecentActivityPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" asChild>
-                    <Link href="/dashboard">
-                        <ArrowLeft className="h-4 w-4" />
-                    </Link>
-                </Button>
-                <div>
-                    <h1 className="text-2xl font-bold text-primary">Activité Récente</h1>
-                    <p className="text-muted-foreground">
-                        Historique détaillé des actions et événements (50 derniers)
-                    </p>
-                </div>
-            </div>
 
             <Card>
                 <CardContent className="pt-6">

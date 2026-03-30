@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, Upload, Download, MoreHorizontal, Users, UserCheck, UserX, Target } from 'lucide-react'
+import { Plus, Upload, Download, MoreHorizontal, Users, UserCheck, UserX, Target, Briefcase } from 'lucide-react'
 import { exportProspects } from '@/lib/actions/prospects'
 import { toast } from 'sonner'
 
@@ -69,10 +69,6 @@ export function ProspectsHeader({ stats }: ProspectsHeaderProps) {
     <div className="space-y-6">
       {/* Header with Actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Prospects</h1>
-          <p className="text-muted-foreground">Gérez votre base de prospects et leads</p>
-        </div>
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -95,6 +91,13 @@ export function ProspectsHeader({ stats }: ProspectsHeaderProps) {
             <Link href="/dashboard/prospects/import">
               <Upload className="mr-2 h-4 w-4" />
               Importer
+            </Link>
+          </Button>
+
+          <Button variant="secondary" asChild className="border-primary/20 hover:bg-primary/5">
+            <Link href="/dashboard/prospects">
+              <Users className="mr-2 h-4 w-4 text-primary" />
+              Voir mes prospects
             </Link>
           </Button>
 

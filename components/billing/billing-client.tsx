@@ -23,6 +23,7 @@ import { PlanType, PLANS } from '@/lib/config/plans'
 import { toast } from 'sonner'
 import { Profile } from '@/lib/types/database'
 import { CheckoutDialog } from './checkout-dialog'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 interface BillingClientProps {
     profile: Profile | null;
@@ -33,7 +34,7 @@ export function BillingClient({ profile, stats }: BillingClientProps) {
     const [isChanging, setIsChanging] = useState(false)
     const [showCheckout, setShowCheckout] = useState(false)
     const [checkoutMode, setCheckoutMode] = useState<'payment_method' | 'checkout'>('checkout')
-    const [selectedPlan, setSelectedPlan] = useState<{ name: string, price: string } | null>(null)
+    const [selectedPlan, setSelectedPlan] = useState<{ name: string, price: string, features?: string[] } | null>(null)
 
     const currentPlanKey = (profile?.plan as PlanType) || 'starter'
     const currentPlanConfig = PLANS[currentPlanKey]
@@ -61,7 +62,7 @@ export function BillingClient({ profile, stats }: BillingClientProps) {
         },
         {
             name: 'Enterprise',
-            price: 'Sur devis',
+            price: '139',
             features: PLANS.enterprise.features,
             current: currentPlanKey === 'enterprise'
         },
@@ -74,13 +75,12 @@ export function BillingClient({ profile, stats }: BillingClientProps) {
     }
 
     const openCheckout = (plan: typeof plans[0]) => {
-        if (plan.price === 'Sur devis') return // Handle enterprise differently if needed
 
         const planKey = plan.name.toLowerCase() as PlanType
         if (planKey === currentPlanKey) return
 
         setCheckoutMode('checkout')
-        setSelectedPlan({ name: plan.name, price: plan.price })
+        setSelectedPlan({ name: plan.name, price: plan.price, features: plan.features })
         setShowCheckout(true)
     }
 
@@ -106,19 +106,15 @@ export function BillingClient({ profile, stats }: BillingClientProps) {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-primary">Facturation</h1>
-                    <p className="text-muted-foreground">
-                        Gérez votre abonnement et consultez vos factures
-                    </p>
-                </div>
-                <Button variant="outline" className="bg-transparent" onClick={openPaymentMethod}>
+            <PageHeader 
+                title="Facturation & Abonnements" 
+                description="Gérez votre forfait, vos moyens de paiement et consultez l'historique de vos factures."
+            >
+                <Button variant="outline" className="bg-transparent border-primary/20 hover:bg-primary/5 transition-all font-semibold" onClick={openPaymentMethod}>
                     <CreditCard className="mr-2 h-4 w-4" />
                     Mettre à jour le paiement
                 </Button>
-            </div>
+            </PageHeader>
 
             {/* Current Plan */}
             <Card className="bg-gradient-to-r from-primary/5 to-transparent border-primary/20">
@@ -130,18 +126,18 @@ export function BillingClient({ profile, stats }: BillingClientProps) {
                             </div>
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <CardTitle>Plan {currentPlanConfig.name}</CardTitle>
+                                    <CardTitle>Votre Forfait Actuel: {currentPlanConfig.name}</CardTitle>
                                     <Badge variant="secondary" className="bg-primary/10 text-primary border-none">
                                         Mensuel
                                     </Badge>
                                 </div>
-                                <CardDescription>
-                                    Votre prochaine facture est de {currentPlanKey === 'starter' ? '19' : currentPlanKey === 'pro' ? '49' : '0'}€ le {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString()}
+                                <CardDescription suppressHydrationWarning>
+                                    Votre prochaine facture est de {currentPlanKey === 'starter' ? '19' : currentPlanKey === 'pro' ? '49' : '139'}€ le {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('fr-FR')}
                                 </CardDescription>
                             </div>
                         </div>
                         <div className="text-right">
-                            <p className="text-3xl font-bold">{currentPlanKey === 'enterprise' ? 'Sur devis' : `${currentPlanKey === 'pro' ? '49' : '19'}€`}</p>
+                            <p className="text-3xl font-bold">{currentPlanKey === 'enterprise' ? '139' : currentPlanKey === 'pro' ? '49' : '19'}€</p>
                             <p className="text-sm text-muted-foreground">par mois</p>
                         </div>
                     </div>
@@ -219,7 +215,7 @@ export function BillingClient({ profile, stats }: BillingClientProps) {
                                     onClick={() => openCheckout(plan)}
                                 >
                                     {isChanging && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    {plan.price === 'Sur devis' ? 'Nous contacter' : (plan.name === 'Pro' || (plan.name === 'Starter' && currentPlanKey === 'enterprise') ? 'Passer au plan' : 'Changer')}
+                                    Passer au plan
                                 </Button>
                             )}
                         </CardContent>

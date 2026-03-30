@@ -24,8 +24,11 @@ import {
   XCircle,
   User
 } from 'lucide-react'
-import { getRecentActivity } from '@/lib/actions/dashboard'
+import { useSWRConfig } from 'swr'
+import { getAllActivities, getActivityStats, type ActivityStats } from '@/lib/actions/activities'
+import { AddActivityModal } from '@/components/dashboard/add-activity-modal'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/dashboard/page-header'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -67,17 +70,28 @@ interface ActivityItem {
 }
 
 async function fetchActivities(): Promise<ActivityItem[]> {
-  const result = await getRecentActivity()
+  const result = await getAllActivities()
   return (result.data as ActivityItem[]) || []
+}
+
+async function fetchStats(): Promise<ActivityStats | null> {
+  const result = await getActivityStats()
+  return result.data || null
 }
 
 export default function ActivitiesPage() {
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const { mutate } = useSWRConfig()
 
   const { data: activities = [], isLoading } = useSWR<ActivityItem[]>(
     'all-activities',
     fetchActivities
+  )
+
+  const { data: stats, isLoading: statsLoading } = useSWR<ActivityStats | null>(
+    'activity-stats',
+    fetchStats
   )
 
   const filteredActivities = activities.filter((activity: ActivityItem) => {
@@ -91,19 +105,15 @@ export default function ActivitiesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Activites</h1>
-          <p className="text-muted-foreground">
-            Suivez toutes les interactions avec vos prospects
-          </p>
-        </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle activite
-        </Button>
-      </div>
+      <PageHeader 
+        title="Activités" 
+        description="Consultez l'historique complet de vos interactions avec vos clients et prospects."
+      >
+        <AddActivityModal onSuccess={() => {
+          mutate('all-activities')
+          mutate('activity-stats')
+        }} />
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -114,7 +124,7 @@ export default function ActivitiesPage() {
                 <Phone className="h-6 w-6 text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">24</p>
+                <p className="text-2xl font-bold">{statsLoading ? '-' : stats?.callsThisMonth || 0}</p>
                 <p className="text-sm text-muted-foreground">Appels ce mois</p>
               </div>
             </div>
@@ -127,7 +137,7 @@ export default function ActivitiesPage() {
                 <Mail className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">156</p>
+                <p className="text-2xl font-bold">{statsLoading ? '-' : stats?.emailsThisMonth || 0}</p>
                 <p className="text-sm text-muted-foreground">Emails envoyes</p>
               </div>
             </div>
@@ -140,8 +150,8 @@ export default function ActivitiesPage() {
                 <Calendar className="h-6 w-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">8</p>
-                <p className="text-sm text-muted-foreground">Reunions planifiees</p>
+                <p className="text-2xl font-bold">{statsLoading ? '-' : stats?.meetingsThisMonth || 0}</p>
+                <p className="text-sm text-muted-foreground">Reunions ce mois</p>
               </div>
             </div>
           </CardContent>
@@ -153,8 +163,8 @@ export default function ActivitiesPage() {
                 <MessageSquare className="h-6 w-6 text-yellow-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">45</p>
-                <p className="text-sm text-muted-foreground">Notes ajoutees</p>
+                <p className="text-2xl font-bold">{statsLoading ? '-' : stats?.notesThisMonth || 0}</p>
+                <p className="text-sm text-muted-foreground">Notes ce mois</p>
               </div>
             </div>
           </CardContent>

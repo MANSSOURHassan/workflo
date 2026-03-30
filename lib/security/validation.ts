@@ -1,4 +1,5 @@
 // Security validation utilities for input sanitization and validation
+import { z } from 'zod'
 
 // Email validation with strict regex
 export function isValidEmail(email: string): boolean {
@@ -197,3 +198,62 @@ export const securityHeaders = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
 }
+
+// Zod Schemas for centralized validation
+export const prospectSchema = z.object({
+  email: z.string().email('Email invalide').max(254),
+  first_name: z.string().max(100).nullable().optional(),
+  last_name: z.string().max(100).nullable().optional(),
+  company: z.string().max(200).nullable().optional(),
+  job_title: z.string().max(100).nullable().optional(),
+  phone: z.string().max(20).nullable().optional(),
+  website: z.string().url('URL invalide').max(500).or(z.literal('')).nullable().optional(),
+  linkedin_url: z.string().url('URL LinkedIn invalide').max(500).or(z.literal('')).nullable().optional(),
+  address: z.string().max(300).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  country: z.string().max(100).nullable().optional(),
+  source: z.enum(['manual', 'import', 'website', 'linkedin', 'referral', 'api']).optional(),
+  status: z.enum(['new', 'contacted', 'qualified', 'converted', 'lost']).optional(),
+  tags: z.array(z.string()).optional(),
+  notes: z.string().nullable().optional()
+})
+
+export const campaignSchema = z.object({
+  name: z.string().min(2, 'Nom trop court').max(200),
+  type: z.enum(['email', 'sms', 'linkedin', 'call']),
+  subject: z.string().max(500).nullable().optional(),
+  content: z.string().nullable().optional(),
+  status: z.enum(['draft', 'scheduled', 'running', 'paused', 'completed', 'cancelled']).optional()
+})
+
+export const emailTemplateSchema = z.object({
+  name: z.string().min(2, 'Nom trop court').max(200),
+  subject: z.string().min(1, 'Sujet requis').max(500),
+  content: z.string().min(1, 'Contenu requis'),
+  variables: z.array(z.string()).optional(),
+  is_public: z.boolean().optional().or(z.literal('true')).or(z.literal('false'))
+})
+
+export const pipelineSchema = z.object({
+  name: z.string().min(2, 'Nom trop court').max(100),
+  is_default: z.boolean().optional().or(z.literal('true')).or(z.literal('false'))
+})
+
+export const stageSchema = z.object({
+  name: z.string().min(1, 'Nom requis').max(100),
+  color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Couleur invalide').optional(),
+  probability: z.number().min(0).max(100).optional(),
+  position: z.number().optional()
+})
+
+export const dealSchema = z.object({
+  pipeline_id: z.string().uuid('ID Pipeline invalide'),
+  stage_id: z.string().uuid('ID Étape invalide'),
+  prospect_id: z.string().uuid('ID Prospect invalide').nullable().optional(),
+  name: z.string().min(2, 'Nom trop court').max(200),
+  value: z.number().min(0).optional(),
+  currency: z.string().length(3).optional(),
+  status: z.enum(['open', 'won', 'lost']).optional(),
+  expected_close_date: z.string().nullable().optional(),
+  notes: z.string().nullable().optional()
+})

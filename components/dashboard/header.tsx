@@ -34,27 +34,68 @@ interface DashboardHeaderProps {
 
 const pageNames: Record<string, string> = {
   '/dashboard': 'Tableau de bord',
-  '/dashboard/prospects': 'Prospects',
-  '/dashboard/leads': 'Leads IA',
-  '/dashboard/campaigns': 'Campagnes',
+  '/dashboard/prospects/import': 'Importation',
+  '/dashboard/prospects/new': 'Nouveau Prospect',
+  '/dashboard/prospects': 'Contacts',
+  '/dashboard/leads': 'Trouver des clients',
   '/dashboard/pipeline': 'Pipeline',
+  '/dashboard/activities': 'Activités',
+  '/dashboard/campaigns/templates': 'Modèles d\'emails',
+  '/dashboard/campaigns/new': 'Nouvelle Campagne',
+  '/dashboard/campaigns': 'Campagnes',
+  '/dashboard/autopilot': 'Autopilot IA',
+  '/dashboard/chatbot': 'Widgets Chatbot',
+  '/dashboard/assistant': 'Assistant IA',
+  '/dashboard/email': 'Messagerie',
+  '/dashboard/calendar': 'Calendrier',
+  '/dashboard/social': 'Réseaux Sociaux',
+  '/dashboard/tasks': 'Tâches',
+  '/dashboard/analytics': 'Analytics',
   '/dashboard/reports': 'Rapports',
+  '/dashboard/accounting': 'Bilan Comptable',
+  '/dashboard/invoices': 'Devis & Factures',
+  '/dashboard/banking': 'Banques',
+  '/dashboard/catalog': 'Catalogue',
+  '/dashboard/documents': 'Documents',
+  '/dashboard/templates': 'Modèles',
+  '/dashboard/academy': 'Academy',
+  '/dashboard/team': 'Équipe',
+  '/dashboard/billing': 'Facturation',
+  '/dashboard/integrations': 'Connexions',
+  '/dashboard/customize': 'Personnalisation',
+  '/dashboard/settings/api-keys': 'Clés API',
+  '/dashboard/settings/rgpd': 'RGPD',
+  '/dashboard/settings/security': 'Sécurité',
+  '/dashboard/settings/webhooks': 'Webhooks',
   '/dashboard/settings': 'Paramètres',
-  '/dashboard/support': 'Support',
+  '/dashboard/search': 'Recherche',
+  '/dashboard/debug': 'Diagnostic',
 }
 
 export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
   const pathname = usePathname()
 
-  const currentPageName = Object.entries(pageNames).find(([path]) =>
-    pathname === path || pathname.startsWith(path + '/')
-  )?.[1] || 'Tableau de bord'
+  const currentPageName = Object.entries(pageNames)
+    .sort((a, b) => b[0].length - a[0].length)
+    .find(([path]) => pathname === path || pathname.startsWith(path + '/'))
+    ?.[1] || 'Tableau de bord'
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-6">
       {/* Page Title & Breadcrumb */}
-      <div className="flex items-center gap-4">
-        <h1 className="text-xl font-semibold text-primary">{currentPageName}</h1>
+      <div className="flex items-center gap-2 text-sm">
+        <Link 
+          href="/dashboard" 
+          className="text-muted-foreground hover:text-primary transition-colors font-medium"
+        >
+          Tableau de bord
+        </Link>
+        {pathname !== '/dashboard' && (
+          <>
+            <span className="text-muted-foreground/50">/</span>
+            <h1 className="font-semibold text-foreground">{currentPageName}</h1>
+          </>
+        )}
       </div>
 
       {/* Search & Actions */}

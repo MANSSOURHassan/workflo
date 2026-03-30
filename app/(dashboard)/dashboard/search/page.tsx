@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { globalSearch, SearchResult } from '@/lib/actions/search'
 import { User, Building2, Mail, FileText, ArrowRight, ArrowLeft, Search as SearchIcon } from 'lucide-react'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,19 +31,16 @@ export default async function SearchPage({
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
-            <div className="flex items-center gap-4 mb-8">
+            <PageHeader 
+                title="Recherche Universelle" 
+                description="Retrouvez instantanément vos contacts, opportunités et campagnes à travers tout votre CRM."
+            >
                 <Button variant="ghost" size="icon" asChild>
                     <Link href="/dashboard">
                         <ArrowLeft className="h-4 w-4" />
                     </Link>
                 </Button>
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Recherche</h1>
-                    <p className="text-muted-foreground">
-                        Trouvez rapidement ce que vous cherchez dans votre CRM
-                    </p>
-                </div>
-            </div>
+            </PageHeader>
 
             <div className="mb-8">
                 <Suspense fallback={<div className="h-12 bg-muted rounded animate-pulse" />}>

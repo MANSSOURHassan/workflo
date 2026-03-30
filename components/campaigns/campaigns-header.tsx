@@ -69,12 +69,6 @@ export function CampaignsHeader({ onCampaignCreated }: CampaignsHeaderProps) {
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Campagnes</h1>
-        <p className="text-muted-foreground">
-          Gérez vos campagnes d'emailing et d'automatisation
-        </p>
-      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>

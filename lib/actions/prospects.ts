@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidateTag } from 'next/cache'
 import type { Prospect, ProspectStatus, ProspectSource } from '@/lib/types/database'
-import { validateProspectInput, sanitizeForDb, isValidUUID } from '@/lib/security/validation'
+import { prospectSchema, isValidUUID } from '@/lib/security/validation'
+import { logAuditAction } from '@/lib/security/audit'
 
 export async function getProspects(params?: {
   search?: string
@@ -26,36 +27,80 @@ export async function getProspects(params?: {
   const limit = params?.limit || 25
   const offset = (page - 1) * limit
 
-  let query = supabase
-    .from('prospects')
-    .select('*, assigned_to_member:team_members(id, first_name, last_name)', { count: 'exact' })
-    .eq('user_id', user.id)
+  try {
+    let query = supabase
+      .from('prospects')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user.id)
 
-  if (params?.search) {
-    query = query.or(`email.ilike.%${params.search}%,first_name.ilike.%${params.search}%,last_name.ilike.%${params.search}%,company.ilike.%${params.search}%`)
+    if (params?.search) {
+      query = query.or(`email.ilike.%${params.search}%,first_name.ilike.%${params.search}%,last_name.ilike.%${params.search}%,company.ilike.%${params.search}%`)
+    }
+
+    if (params?.status) {
+      query = query.eq('status', params.status)
+    }
+
+    if (params?.source) {
+      query = query.eq('source', params.source)
+    }
+
+    if (params?.tags && params.tags.length > 0) {
+      query = query.contains('tags', params.tags)
+    }
+
+    const sortBy = params?.sortBy || 'created_at'
+    const sortOrder = params?.sortOrder || 'desc'
+    query = query.order(sortBy, { ascending: sortOrder === 'asc' })
+
+    query = query.range(offset, offset + limit - 1)
+
+    const { data: prospectsData, count, error } = await query
+
+    if (error) {
+      console.error('Error fetching prospects:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+      return { 
+        data: [], 
+        count: 0, 
+        error: `Erreur base de données: ${error.message}.` 
+      }
+    }
+
+    // Join with team members in memory to avoid "relationship not found" schema errors
+    const prospects = (prospectsData as Prospect[]) || []
+    
+    try {
+      const assignedIds = [...new Set(prospects.map(p => p.assigned_to).filter(Boolean))] as string[]
+      
+      if (assignedIds.length > 0) {
+        const { data: members } = await supabase
+          .from('team_members')
+          .select('id, first_name, last_name')
+          .in('id', assignedIds)
+
+        if (members) {
+          prospects.forEach(p => {
+            if (p.assigned_to) {
+              p.assigned_to_member = members.find(m => m.id === p.assigned_to)
+            }
+          })
+        }
+      }
+    } catch (e) {
+      console.warn('Could not join with team_members:', e)
+      // We continue anyway, prospects will just not have worker names
+    }
+
+    return { data: prospects, count: count || 0 }
+  } catch (err) {
+    console.error('Exception in getProspects:', err)
+    return { data: [], count: 0, error: 'Table prospects non trouvée ou erreur de connexion' }
   }
-
-  if (params?.status) {
-    query = query.eq('status', params.status)
-  }
-
-  if (params?.source) {
-    query = query.eq('source', params.source)
-  }
-
-  if (params?.tags && params.tags.length > 0) {
-    query = query.contains('tags', params.tags)
-  }
-
-  const sortBy = params?.sortBy || 'created_at'
-  const sortOrder = params?.sortOrder || 'desc'
-  query = query.order(sortBy, { ascending: sortOrder === 'asc' })
-
-  query = query.range(offset, offset + limit - 1)
-
-  const { data, count, error } = await query
-
-  return { data: data as Prospect[], count: count || 0, error: error?.message }
 }
 
 export async function getProspect(id: string) {
@@ -71,14 +116,27 @@ export async function getProspect(id: string) {
     return { data: null, error: 'Non autorisé' }
   }
 
-  const { data, error } = await supabase
-    .from('prospects')
-    .select('*')
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('prospects')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
 
-  return { data: data as Prospect | null, error: error?.message }
+    if (error) {
+      console.error('Error fetching prospect:', error)
+      return { 
+        data: null, 
+        error: `Erreur base de données: ${error.message}. Assurez-vous que la table 'prospects' existe.` 
+      }
+    }
+
+    return { data: data as Prospect | null }
+  } catch (err) {
+    console.error('Exception in getProspect:', err)
+    return { data: null, error: 'Prospect non trouvé' }
+  }
 }
 
 export async function createProspect(formData: FormData) {
@@ -89,39 +147,30 @@ export async function createProspect(formData: FormData) {
     return { error: 'Non autorisé' }
   }
 
-  // Check subscription limits
+  // Check subscription limits (Optimized: passing client & user)
   const { checkLimit } = await import('@/lib/utils/subscription')
-  const limitCheck = await checkLimit('prospects')
+  const limitCheck = await checkLimit('prospects', supabase, user)
   if (!limitCheck.allowed) {
     return { error: limitCheck.error }
   }
 
-  // Validate input
-  const validation = validateProspectInput(formData)
-  if (!validation.valid) {
-    return { error: validation.errors.join('. ') }
+  // Validate input with Zod
+  const rawData = Object.fromEntries(formData.entries())
+  if (rawData.tags) {
+    (rawData as any).tags = (rawData.tags as string).split(',').map(t => t.trim()).filter(Boolean)
+  } else {
+    (rawData as any).tags = []
   }
 
-  const tagsString = formData.get('tags') as string
-  const tags = tagsString ? tagsString.split(',').map(t => sanitizeForDb(t.trim(), 50)).filter(Boolean) as string[] : []
+  const validation = prospectSchema.safeParse(rawData)
+  if (!validation.success) {
+    return { error: 'Validation échouée: ' + validation.error.errors.map(e => e.message).join(', ') }
+  }
 
   const prospect = {
+    ...validation.data,
     user_id: user.id,
-    email: (formData.get('email') as string).trim().toLowerCase(),
-    first_name: sanitizeForDb(formData.get('first_name') as string, 100),
-    last_name: sanitizeForDb(formData.get('last_name') as string, 100),
-    company: sanitizeForDb(formData.get('company') as string, 200),
-    job_title: sanitizeForDb(formData.get('job_title') as string, 100),
-    phone: sanitizeForDb(formData.get('phone') as string, 20),
-    linkedin_url: sanitizeForDb(formData.get('linkedin_url') as string, 500),
-    website: sanitizeForDb(formData.get('website') as string, 500),
-    address: sanitizeForDb(formData.get('address') as string, 300),
-    city: sanitizeForDb(formData.get('city') as string, 100),
-    country: sanitizeForDb(formData.get('country') as string, 100),
-    status: (formData.get('status') as ProspectStatus) || 'new',
-    source: (formData.get('source') as ProspectSource) || 'manual',
-    tags,
-    notes: sanitizeForDb(formData.get('notes') as string, 5000),
+    email: validation.data.email.toLowerCase(),
   }
 
   const { data, error } = await supabase
@@ -133,6 +182,16 @@ export async function createProspect(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit (Non-blocking for speed)
+  logAuditAction({
+    action: 'prospect.create',
+    entityType: 'prospect',
+    entityId: data.id,
+    newData: data,
+    supabaseClient: supabase,
+    userObj: user
+  })
 
   revalidateTag('prospects', 'max')
   return { data }
@@ -146,30 +205,27 @@ export async function updateProspect(id: string, formData: FormData) {
     return { error: 'Non autorisé' }
   }
 
-  const tagsString = formData.get('tags') as string
-  const tags = tagsString ? tagsString.split(',').map(t => t.trim()).filter(Boolean) : []
-
-  const updates: Partial<Prospect> = {
-    email: formData.get('email') as string,
-    first_name: formData.get('first_name') as string || null,
-    last_name: formData.get('last_name') as string || null,
-    company: formData.get('company') as string || null,
-    job_title: formData.get('job_title') as string || null,
-    phone: formData.get('phone') as string || null,
-    linkedin_url: formData.get('linkedin_url') as string || null,
-    website: formData.get('website') as string || null,
-    address: formData.get('address') as string || null,
-    city: formData.get('city') as string || null,
-    country: formData.get('country') as string || null,
-    status: formData.get('status') as ProspectStatus,
-    source: formData.get('source') as ProspectSource,
-    tags,
-    notes: formData.get('notes') as string || null,
+  const rawData = Object.fromEntries(formData.entries())
+  if (rawData.tags) {
+    (rawData as any).tags = (rawData.tags as string).split(',').map(t => t.trim()).filter(Boolean)
   }
+
+  const validation = prospectSchema.partial().safeParse(rawData)
+  if (!validation.success) {
+    return { error: 'Validation échouée: ' + validation.error.errors.map(e => e.message).join(', ') }
+  }
+
+  // Get old data for audit
+  const { data: oldData } = await supabase
+    .from('prospects')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
 
   const { data, error } = await supabase
     .from('prospects')
-    .update(updates)
+    .update(validation.data)
     .eq('id', id)
     .eq('user_id', user.id)
     .select()
@@ -178,6 +234,17 @@ export async function updateProspect(id: string, formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit (Non-blocking for speed)
+  logAuditAction({
+    action: 'prospect.update',
+    entityType: 'prospect',
+    entityId: id,
+    oldData,
+    newData: data,
+    supabaseClient: supabase,
+    userObj: user
+  })
 
   revalidateTag('prospects', 'max')
   return { data }
@@ -196,6 +263,14 @@ export async function deleteProspect(id: string) {
     return { error: 'Non autorisé' }
   }
 
+  // Get old data for audit
+  const { data: oldData } = await supabase
+    .from('prospects')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
   const { error } = await supabase
     .from('prospects')
     .delete()
@@ -205,6 +280,16 @@ export async function deleteProspect(id: string) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit (Non-blocking for speed)
+  logAuditAction({
+    action: 'prospect.delete',
+    entityType: 'prospect',
+    entityId: id,
+    oldData,
+    supabaseClient: supabase,
+    userObj: user
+  })
 
   revalidateTag('prospects', 'max')
   return { success: true }
@@ -238,6 +323,15 @@ export async function deleteMultipleProspects(ids: string[]) {
     return { error: error.message }
   }
 
+  // Log deletion action
+  await logAuditAction({
+    action: 'prospect.delete_bulk',
+    entityType: 'prospect',
+    entityId: ids.join(','),
+    description: `Suppression de ${ids.length} prospect(s)`,
+    metadata: { ids }
+  })
+
   revalidateTag('prospects', 'max')
   return { success: true }
 }
@@ -259,6 +353,15 @@ export async function exportProspects(format: 'csv' | 'excel') {
   if (error) {
     return { error: error.message }
   }
+
+  // Log export action
+  await logAuditAction({
+    action: 'prospect.export',
+    entityType: 'prospect',
+    entityId: 'bulk',
+    description: `Export de prospects au format ${format}`,
+    metadata: { format, count: data.length }
+  })
 
   // Generate CSV content
   if (format === 'csv') {
@@ -291,30 +394,38 @@ export async function getProspectStats() {
     return { error: 'Non autorisé' }
   }
 
-  const { data, error } = await supabase
-    .from('prospects')
-    .select('status, ai_score, created_at')
-    .eq('user_id', user.id)
+  try {
+    const { data, error } = await supabase
+      .from('prospects')
+      .select('status, ai_score, created_at')
+      .eq('user_id', user.id)
 
-  if (error) {
-    return { error: error.message }
+    if (error) {
+      console.error('Error fetching prospect stats:', error)
+      return { data: { total: 0, new: 0, contacted: 0, qualified: 0, converted: 0, lost: 0, thisMonth: 0, avgAiScore: 0 } }
+    }
+
+    const prospects = (data as Pick<Prospect, 'status' | 'ai_score' | 'created_at'>[]) || []
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    const stats = {
+      total: prospects.length,
+      new: prospects.filter(p => p.status === 'new').length,
+      contacted: prospects.filter(p => p.status === 'contacted').length,
+      qualified: prospects.filter(p => p.status === 'qualified').length,
+      converted: prospects.filter(p => p.status === 'converted').length,
+      lost: prospects.filter(p => p.status === 'lost').length,
+      thisMonth: prospects.filter(p => new Date(p.created_at) >= startOfMonth).length,
+      avgAiScore: prospects.filter(p => p.ai_score !== null).length > 0 
+        ? prospects.filter(p => p.ai_score !== null).reduce((acc, p) => acc + (p.ai_score || 0), 0) /
+          (prospects.filter(p => p.ai_score !== null).length || 1)
+        : 0
+    }
+
+    return { data: stats }
+  } catch (err) {
+    console.error('Exception in getProspectStats:', err)
+    return { data: { total: 0, new: 0, contacted: 0, qualified: 0, converted: 0, lost: 0, thisMonth: 0, avgAiScore: 0 } }
   }
-
-  const prospects = data as Pick<Prospect, 'status' | 'ai_score' | 'created_at'>[]
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-
-  const stats = {
-    total: prospects.length,
-    new: prospects.filter(p => p.status === 'new').length,
-    contacted: prospects.filter(p => p.status === 'contacted').length,
-    qualified: prospects.filter(p => p.status === 'qualified').length,
-    converted: prospects.filter(p => p.status === 'converted').length,
-    lost: prospects.filter(p => p.status === 'lost').length,
-    thisMonth: prospects.filter(p => new Date(p.created_at) >= startOfMonth).length,
-    avgAiScore: prospects.filter(p => p.ai_score !== null).reduce((acc, p) => acc + (p.ai_score || 0), 0) /
-      (prospects.filter(p => p.ai_score !== null).length || 1)
-  }
-
-  return { data: stats }
 }

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+
 import {
   Table,
   TableBody,
@@ -45,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { MoreHorizontal, Eye, Pencil, Trash2, ArrowUpDown, Mail, Phone, Building2, User, Info, Sparkles } from 'lucide-react'
+import { MoreHorizontal, Eye, Pencil, Trash2, ArrowUpDown, Mail, Phone, Building2, User, Info, Sparkles, Database } from 'lucide-react'
 import { deleteProspect, deleteMultipleProspects } from '@/lib/actions/prospects'
 import { assignProspect } from '@/lib/actions/team'
 import { toast } from 'sonner'
@@ -64,6 +65,7 @@ interface ProspectsTableProps {
   teamMembers: TeamMember[]
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
+  error?: string
 }
 
 const statusColors: Record<string, string> = {
@@ -91,13 +93,14 @@ const sourceLabels: Record<string, string> = {
   api: 'API'
 }
 
-export function ProspectsTable({ prospects, teamMembers, sortBy, sortOrder }: ProspectsTableProps) {
+export function ProspectsTable({ prospects, teamMembers, sortBy, sortOrder, error }: ProspectsTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [prospectToDelete, setProspectToDelete] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
 
   async function handleAssign(prospectId: string, memberId: string | 'unassigned') {
     const targetMemberId = memberId === 'unassigned' ? null : memberId
@@ -161,6 +164,27 @@ export function ProspectsTable({ prospects, teamMembers, sortBy, sortOrder }: Pr
     setProspectToDelete(null)
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 bg-destructive/5 text-destructive rounded-lg border border-destructive/20 p-6">
+        <Info className="h-10 w-10 mb-4" />
+        <p className="text-lg font-bold mb-2">Problème de connexion aux données</p>
+        <p className="text-sm text-center max-w-md mb-6">{error}</p>
+        <div className="flex gap-4">
+          <Button asChild variant="outline" className="border-destructive/20 hover:bg-destructive/10">
+            <Link href="/dashboard/prospects">Réessayer</Link>
+          </Button>
+          <Button asChild variant="secondary">
+            <Link href="/dashboard/debug">
+              <Database className="mr-2 h-4 w-4" />
+              Diagnostiquer ma base
+            </Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (prospects.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 bg-card rounded-lg border">
@@ -222,7 +246,7 @@ export function ProspectsTable({ prospects, teamMembers, sortBy, sortOrder }: Pr
                     Score IA <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-36"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -328,38 +352,30 @@ export function ProspectsTable({ prospects, teamMembers, sortBy, sortOrder }: Pr
                     )}
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-[160px]">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/prospects/${prospect.id}`}>
-                            <Eye className="mr-2 h-4 w-4 text-muted-foreground" />
-                            Détails
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/prospects/${prospect.id}/edit`}>
-                            <Pencil className="mr-2 h-4 w-4 text-muted-foreground" />
-                            Modifier
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                          onClick={() => {
-                            setProspectToDelete(prospect.id)
-                            setDeleteDialogOpen(true)
-                          }}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Supprimer
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-1">
+                      <Button asChild variant="outline" size="sm" className="h-8 px-3 text-xs">
+                        <Link href={`/dashboard/prospects/${prospect.id}`}>
+                          <Eye className="mr-1.5 h-3.5 w-3.5" />
+                          Voir
+                        </Link>
+                      </Button>
+                      <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                        <Link href={`/dashboard/prospects/${prospect.id}/edit`}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          setProspectToDelete(prospect.id)
+                          setDeleteDialogOpen(true)
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -367,6 +383,8 @@ export function ProspectsTable({ prospects, teamMembers, sortBy, sortOrder }: Pr
           </Table>
         </div>
       </TooltipProvider>
+
+
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

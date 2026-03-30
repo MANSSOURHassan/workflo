@@ -1,0 +1,10 @@
+C:\Users\hassa\OneDrive - umontpellier.fr\Bureau\workflow_crm\components\billing\checkout-dialog.tsx
+C:\Users\hassa\OneDrive - umontpellier.fr\Bureau\workflow_crm\components\billing\billing-client.tsx
+C:\Users\hassa\OneDrive - umontpellier.fr\Bureau\workflow_crm\app\page.tsx
+C:\Users\hassa\OneDrive - umontpellier.fr\Bureau\workflow_crm\components\dashboard\add-activity-modal.tsx
+C:\Users\hassa\OneDrive - umontpellier.fr\Bureau\workflow_crm\app\(dashboard)\dashboard\activities\page.tsx
+C:\Users\hassa\OneDrive - umontpellier.fr\Bureau\workflow_crm\app\(dashboard)\dashboard\chatbot\page.tsx
+C:\Users\hassa\OneDrive - umontpellier.fr\Bureau\workflow_crm\app\(dashboard)\dashboard\accounting\page.tsx
+C:\Users\hassa\OneDrive - umontpellier.fr\Bureau\workflow_crm\app\(dashboard)\dashboard\analytics\page.tsx
+C:\Users\hassa\OneDrive - umontpellier.fr\Bureau\workflow_crm\components\accounting\add-urssaf-modal.tsx
+C:\Users\hassa\OneDrive - umontpellier.fr\Bureau\workflow_crm\app\(dashboard)\dashboard\settings\security\page.tsx

@@ -115,10 +115,6 @@ export default function ImportProspectsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Importer des prospects</h1>
-          <p className="text-muted-foreground">Importez vos prospects depuis un fichier CSV ou Excel</p>
-        </div>
       </div>
 
       {/* Template Download */}

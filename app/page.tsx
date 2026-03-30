@@ -294,7 +294,7 @@ export default function HomePage() {
                   <CardTitle className="text-foreground">Enterprise</CardTitle>
                   <CardDescription>Pour les grandes organisations</CardDescription>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-foreground">149EUR</span>
+                    <span className="text-4xl font-bold text-foreground">139EUR</span>
                     <span className="text-muted-foreground">/mois</span>
                   </div>
                 </CardHeader>

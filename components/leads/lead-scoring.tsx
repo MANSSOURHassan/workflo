@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { TrendingUp, TrendingDown, Building2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Building2, Eye } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import type { Prospect } from '@/lib/types/database'
 
 interface LeadScoringProps {
@@ -99,6 +100,11 @@ export function LeadScoring({ prospects }: LeadScoringProps) {
                         isHigh ? '[&>div]:bg-green-500' : isMedium ? '[&>div]:bg-yellow-500' : '[&>div]:bg-red-500'
                       }`}
                     />
+                  </div>
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </Link>

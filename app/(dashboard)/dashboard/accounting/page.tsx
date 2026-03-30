@@ -26,7 +26,8 @@ import {
     Share2,
     MessageCircle,
     FileDown,
-    Landmark
+    Landmark,
+    ExternalLink
 } from 'lucide-react'
 import {
     DropdownMenu,
@@ -71,6 +72,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { PageHeader } from '@/components/dashboard/page-header'
 
 const classLabels: Record<number, string> = {
     1: 'Capitaux (Classe 1)',
@@ -256,13 +258,10 @@ export default function AccountingPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Comptabilité Professionnelle</h1>
-                    <p className="text-muted-foreground">
-                        Bilan, Compte de Résultat et Plan Comptable Général (PCG).
-                    </p>
-                </div>
+            <PageHeader 
+                title="Comptabilité Pro" 
+                description="Gérez votre facturation, suivez vos dépenses et visualisez votre bilan comptable en temps réel."
+            >
                 <div className="flex gap-2">
                     <Button
                         variant="outline"
@@ -277,7 +276,7 @@ export default function AccountingPage() {
                         Grand Livre
                     </Button>
                 </div>
-            </div>
+            </PageHeader>
 
             {/* Summary Row */}
             <div className="grid gap-4 md:grid-cols-3">
@@ -531,7 +530,7 @@ export default function AccountingPage() {
                                                 <div className="flex items-center gap-3">
                                                     <div className="text-right">
                                                         <p className="font-bold">{inv.total.toLocaleString('fr-FR')} €</p>
-                                                        <p className="text-[10px] text-muted-foreground">{new Date(inv.issue_date).toLocaleDateString('fr-FR')}</p>
+                                                        <p className="text-[10px] text-muted-foreground" suppressHydrationWarning>{new Date(inv.issue_date).toLocaleDateString('fr-FR')}</p>
                                                     </div>
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
@@ -601,7 +600,7 @@ export default function AccountingPage() {
                                                 <div className="flex items-center gap-3">
                                                     <div className="text-right">
                                                         <p className="font-bold">{q.total.toLocaleString('fr-FR')} €</p>
-                                                        <p className="text-[10px] text-muted-foreground">{new Date(q.issue_date).toLocaleDateString('fr-FR')}</p>
+                                                        <p className="text-[10px] text-muted-foreground" suppressHydrationWarning>{new Date(q.issue_date).toLocaleDateString('fr-FR')}</p>
                                                     </div>
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
@@ -679,7 +678,7 @@ export default function AccountingPage() {
                                             <div className="flex items-center gap-3">
                                                 <div className="text-right">
                                                     <p className="font-bold text-lg">{expense.total_amount.toLocaleString('fr-FR')} €</p>
-                                                    <p className="text-[10px] text-muted-foreground">
+                                                    <p className="text-[10px] text-muted-foreground" suppressHydrationWarning>
                                                         {new Date(expense.issue_date).toLocaleDateString('fr-FR')}
                                                     </p>
                                                 </div>
@@ -823,6 +822,14 @@ export default function AccountingPage() {
 
                 <TabsContent value="urssaf" className="space-y-4">
                     <div className="flex justify-end gap-2">
+                        <Button 
+                            variant="outline" 
+                            className="gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border-blue-200"
+                            onClick={() => window.open('https://www.autoentrepreneur.urssaf.fr/portail/accueil.html', '_blank')}
+                        >
+                            <ExternalLink className="h-4 w-4" />
+                            Déclarer sur l'URSSAF
+                        </Button>
                         <AddUrssafModal onSuccess={loadData} />
                     </div>
                     <Card>
@@ -840,7 +847,7 @@ export default function AccountingPage() {
                                     {urssafDeclarations.map((decl) => (
                                         <div key={decl.id} className="flex items-center justify-between p-4 rounded-xl border bg-card hover:shadow-sm transition-all">
                                             <div>
-                                                <p className="font-semibold text-lg">Période du {new Date(decl.period_start).toLocaleDateString('fr-FR')} au {new Date(decl.period_end).toLocaleDateString('fr-FR')}</p>
+                                                <p className="font-semibold text-lg" suppressHydrationWarning>Période du {new Date(decl.period_start).toLocaleDateString('fr-FR')} au {new Date(decl.period_end).toLocaleDateString('fr-FR')}</p>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <Badge variant="outline" className={cn("text-xs font-medium",
                                                         decl.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
@@ -866,6 +873,11 @@ export default function AccountingPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
+                                                        {decl.status === 'pending' && (
+                                                            <DropdownMenuItem onClick={() => window.open('https://www.autoentrepreneur.urssaf.fr/portail/accueil.html', '_blank')}>
+                                                                <ExternalLink className="mr-2 h-4 w-4 text-blue-600" /> Déclarer sur le site URSSAF
+                                                            </DropdownMenuItem>
+                                                        )}
                                                         <DropdownMenuItem onClick={() => handleUpdateUrssafStatus(decl.id, 'declared')}>
                                                             Marquer comme Déclaré
                                                         </DropdownMenuItem>

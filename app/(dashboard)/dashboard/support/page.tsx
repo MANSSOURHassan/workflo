@@ -17,6 +17,7 @@ import {
   ChevronUp,
   ExternalLink
 } from 'lucide-react'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 const faqItems = [
   {
@@ -71,13 +72,11 @@ export default function FAQPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-primary">Centre d'aide</h1>
-        <p className="text-muted-foreground">
-          Trouvez des réponses à vos questions et contactez notre support
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader 
+        title="Centre d'aide & Support" 
+        description="Trouvez des réponses à vos questions, consultez la documentation ou contactez notre équipe technique."
+      />
 
       {/* Recherche */}
       <Card>

@@ -65,15 +65,6 @@ export function LeadsHeader({ stats }: LeadsHeaderProps) {
     <div className="space-y-6">
       {/* Header with Actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            Leads IA
-          </h1>
-          <p className="text-muted-foreground">
-            Scoring intelligent et recommandations basées sur l&apos;IA
-          </p>
-        </div>
         <Button onClick={handleBatchScore} disabled={isPending || stats.pendingScore === 0}>
           {isPending ? (
             <>

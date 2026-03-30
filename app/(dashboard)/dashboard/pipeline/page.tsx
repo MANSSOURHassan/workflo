@@ -5,6 +5,7 @@ import useSWR from "swr"
 import { PipelineHeader } from "@/components/pipeline/pipeline-header"
 import { PipelineKanban } from "@/components/pipeline/pipeline-kanban"
 import { PipelineStats } from "@/components/pipeline/pipeline-stats"
+import { PageHeader } from "@/components/dashboard/page-header"
 import { getDefaultPipeline, getPipelineStages, getDeals } from "@/lib/actions/pipeline"
 import type { Pipeline, PipelineStage, Deal } from "@/lib/types/database"
 
@@ -47,8 +48,12 @@ export default function PipelinePage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageHeader 
+        title={pipeline?.name || "Pipeline"} 
+        description="Suivez l'avancement de vos dossiers commerciaux à travers les différentes étapes de vente."
+      />
       <PipelineHeader 
-        pipeline={pipeline} 
+        pipeline={pipeline ? { ...pipeline, stages: stages || [] } : null}
         onPipelineUpdated={refreshAll} 
       />
       

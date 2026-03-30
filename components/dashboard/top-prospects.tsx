@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { ArrowRight, Building2, Mail } from 'lucide-react'
+import { ArrowRight, Building2, Mail, Eye } from 'lucide-react'
 import type { Prospect } from '@/lib/types/database'
 
 interface TopProspectsProps {
@@ -100,6 +100,11 @@ export function TopProspects({ prospects }: TopProspectsProps) {
               <div className="text-right">
                 <div className="text-sm font-medium">{prospect.ai_score}/100</div>
                 <Progress value={prospect.ai_score || 0} className="w-16 h-1.5 mt-1" />
+              </div>
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
+                  <Eye className="h-4 w-4" />
+                </Button>
               </div>
             </Link>
           ))}

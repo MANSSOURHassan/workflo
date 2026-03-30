@@ -14,52 +14,68 @@ export async function getDashboardStats(): Promise<{ data?: DashboardStats; erro
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  // Fetch all data in parallel
-  const [prospectsResult, dealsResult, campaignsResult] = await Promise.all([
-    supabase
-      .from('prospects')
-      .select('id, status, ai_score, created_at')
-      .eq('user_id', user.id),
-    supabase
-      .from('deals')
-      .select('id, value, status, created_at')
-      .eq('user_id', user.id),
-    supabase
-      .from('campaigns')
-      .select('id, status')
-      .eq('user_id', user.id)
-  ])
+  try {
+    // Fetch all data in parallel
+    const [prospectsResult, dealsResult, campaignsResult] = await Promise.all([
+      supabase
+        .from('prospects')
+        .select('id, status, ai_score, created_at')
+        .eq('user_id', user.id),
+      supabase
+        .from('deals')
+        .select('id, value, status, created_at')
+        .eq('user_id', user.id),
+      supabase
+        .from('campaigns')
+        .select('id, status')
+        .eq('user_id', user.id)
+    ])
 
-  const prospects = prospectsResult.data || []
-  const deals = dealsResult.data || []
-  const campaigns = campaignsResult.data || []
+    const prospects = prospectsResult.data || []
+    const deals = dealsResult.data || []
+    const campaigns = campaignsResult.data || []
 
-  const totalProspects = prospects.length
-  const newProspectsThisMonth = prospects.filter(p => new Date(p.created_at) >= startOfMonth).length
-  const totalDeals = deals.length
-  const openDeals = deals.filter(d => d.status === 'open')
-  const wonDeals = deals.filter(d => d.status === 'won')
-  const totalDealsValue = openDeals.reduce((acc, d) => acc + (d.value || 0), 0)
-  const wonDealsValue = wonDeals.reduce((acc, d) => acc + (d.value || 0), 0)
-  const conversionRate = totalProspects > 0
-    ? (prospects.filter(p => p.status === 'converted').length / totalProspects) * 100
-    : 0
-  const activeCampaigns = campaigns.filter(c => c.status === 'active').length
-  const prospectsWithScore = prospects.filter(p => p.ai_score !== null)
-  const avgAiScore = prospectsWithScore.length > 0
-    ? prospectsWithScore.reduce((acc, p) => acc + (p.ai_score || 0), 0) / prospectsWithScore.length
-    : 0
+    const totalProspects = prospects.length
+    const newProspectsThisMonth = prospects.filter(p => new Date(p.created_at) >= startOfMonth).length
+    const totalDeals = deals.length
+    const openDeals = deals.filter(d => d.status === 'open')
+    const wonDeals = deals.filter(d => d.status === 'won')
+    const totalDealsValue = openDeals.reduce((acc, d) => acc + (d.value || 0), 0)
+    const wonDealsValue = wonDeals.reduce((acc, d) => acc + (d.value || 0), 0)
+    const conversionRate = totalProspects > 0
+      ? (prospects.filter(p => p.status === 'converted').length / totalProspects) * 100
+      : 0
+    const activeCampaigns = campaigns.filter(c => c.status === 'active').length
+    const prospectsWithScore = prospects.filter(p => p.ai_score !== null)
+    const avgAiScore = prospectsWithScore.length > 0
+      ? prospectsWithScore.reduce((acc, p) => acc + (p.ai_score || 0), 0) / prospectsWithScore.length
+      : 0
 
-  return {
-    data: {
-      totalProspects,
-      newProspectsThisMonth,
-      totalDeals,
-      totalDealsValue,
-      wonDealsValue,
-      conversionRate: Math.round(conversionRate * 10) / 10,
-      activeCampaigns,
-      avgAiScore: Math.round(avgAiScore)
+    return {
+      data: {
+        totalProspects,
+        newProspectsThisMonth,
+        totalDeals,
+        totalDealsValue,
+        wonDealsValue,
+        conversionRate: Math.round(conversionRate * 10) / 10,
+        activeCampaigns,
+        avgAiScore: Math.round(avgAiScore)
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error)
+    return { 
+      data: {
+        totalProspects: 0,
+        newProspectsThisMonth: 0,
+        totalDeals: 0,
+        totalDealsValue: 0,
+        wonDealsValue: 0,
+        conversionRate: 0,
+        activeCampaigns: 0,
+        avgAiScore: 0
+      }
     }
   }
 }
@@ -72,34 +88,40 @@ export async function getProspectsByStatusChart(): Promise<{ data?: ChartData[];
     return { error: 'Non autorisé' }
   }
 
-  const { data, error } = await supabase
-    .from('prospects')
-    .select('status')
-    .eq('user_id', user.id)
+  try {
+    const { data, error } = await supabase
+      .from('prospects')
+      .select('status')
+      .eq('user_id', user.id)
 
-  if (error) {
-    return { error: error.message }
+    if (error) {
+      console.error('Error fetching prospects chart:', error)
+      return { data: [] }
+    }
+
+    const statusLabels: Record<string, string> = {
+      new: 'Nouveaux',
+      contacted: 'Contactés',
+      qualified: 'Qualifiés',
+      converted: 'Convertis',
+      lost: 'Perdus'
+    }
+
+    const counts: Record<string, number> = {}
+    data?.forEach(p => {
+      counts[p.status] = (counts[p.status] || 0) + 1
+    })
+
+    const chartData: ChartData[] = Object.entries(statusLabels).map(([key, name]) => ({
+      name,
+      value: counts[key] || 0
+    }))
+
+    return { data: chartData }
+  } catch (err) {
+    console.error('Exception fetching prospects chart:', err)
+    return { data: [] }
   }
-
-  const statusLabels: Record<string, string> = {
-    new: 'Nouveaux',
-    contacted: 'Contactés',
-    qualified: 'Qualifiés',
-    converted: 'Convertis',
-    lost: 'Perdus'
-  }
-
-  const counts: Record<string, number> = {}
-  data?.forEach(p => {
-    counts[p.status] = (counts[p.status] || 0) + 1
-  })
-
-  const chartData: ChartData[] = Object.entries(statusLabels).map(([key, name]) => ({
-    name,
-    value: counts[key] || 0
-  }))
-
-  return { data: chartData }
 }
 
 export async function getDealsValueChart(): Promise<{ data?: ChartData[]; error?: string }> {
@@ -158,48 +180,78 @@ export async function getRecentActivity(limit: number = 10) {
     return { data: [], error: 'Non autorisé' }
   }
 
-  // Fetch from both tables
-  const [activitiesResult, auditResult] = await Promise.all([
-    supabase
-      .from('activities')
-      .select('*, prospect:prospects(id, first_name, last_name, company)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(limit),
-    supabase
-      .from('audit_logs')
-      .select('*, team_member:team_members(first_name, last_name)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(limit)
-  ])
+  try {
+    // Fetch from both tables separately without joins to avoid schema cache errors
+    const [activitiesRaw, auditRaw] = await Promise.all([
+      supabase
+        .from('activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(limit),
+      supabase
+        .from('audit_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+    ])
 
-  // Merge and sort
-  const activities = (activitiesResult.data || []).map(a => ({
-    id: a.id,
-    type: 'activity' as const,
-    action: a.type,
-    title: a.title,
-    description: a.description,
-    created_at: a.created_at,
-    metadata: { prospect: a.prospect }
-  }))
+    const activitiesData = activitiesRaw.data || []
+    const auditData = auditRaw.data || []
 
-  const audits = (auditResult.data || []).map(a => ({
-    id: a.id,
-    type: 'audit' as const,
-    action: a.action_type,
-    title: a.description,
-    description: a.team_member ? `Par ${a.team_member.first_name}` : 'Système',
-    created_at: a.created_at,
-    metadata: { prospect: undefined }
-  }))
+    // Optional joins in memory
+    try {
+      const prospectIds = [...new Set(activitiesData.map(a => a.prospect_id).filter(Boolean))] as string[]
+      const memberIds = [...new Set(auditData.map(a => a.user_id).filter(Boolean))] as string[]
 
-  const merged = [...activities, ...audits]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, limit)
+      const [prospectsRes, membersRes] = await Promise.all([
+        prospectIds.length > 0 ? supabase.from('prospects').select('id, first_name, last_name, company').in('id', prospectIds) : { data: [] },
+        memberIds.length > 0 ? supabase.from('team_members').select('id, first_name, last_name').in('id', memberIds) : { data: [] }
+      ])
 
-  return { data: merged }
+      const prospects = prospectsRes.data || []
+      const members = membersRes.data || []
+
+      // Merge and sort
+      const activities = activitiesData.map(a => ({
+        id: a.id,
+        type: 'activity' as const,
+        action: a.type,
+        title: a.title,
+        description: a.description,
+        created_at: a.created_at,
+        metadata: { prospect: prospects.find(p => p.id === a.prospect_id) }
+      }))
+
+      const audits = auditData.map(a => ({
+        id: a.id,
+        type: 'audit' as const,
+        action: a.action_type || a.action,
+        title: a.description || 'Action système',
+        description: members.find(m => m.id === a.user_id) 
+          ? `Par ${members.find(m => m.id === a.user_id)?.first_name}` 
+          : (a.details?.actor_name ? `Par ${a.details.actor_name}` : 'Système'),
+        created_at: a.created_at,
+        metadata: { prospect: undefined }
+      }))
+
+      const merged = [...activities, ...audits]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, limit)
+
+      return { data: merged }
+    } catch (joinErr) {
+      console.warn('In-memory join failed in getRecentActivity:', joinErr)
+      // Return raw data if join fails
+      return { data: activitiesData.map(a => ({ 
+        id: a.id, type: 'activity' as const, action: a.type, title: a.title, description: a.description, created_at: a.created_at, metadata: {} 
+      }))}
+    }
+  } catch (err) {
+    console.error('Error in getRecentActivity:', err)
+    return { data: [] }
+  }
 }
 
 export async function getTopProspects() {

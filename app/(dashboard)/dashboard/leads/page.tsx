@@ -10,6 +10,7 @@ import { LeadScoring } from '@/components/leads/lead-scoring'
 import { AIInsights } from '@/components/leads/ai-insights'
 import type { Prospect } from '@/lib/types/database'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 async function fetchRecommendations() {
   const result = await getLeadRecommendations()
@@ -68,6 +69,10 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader 
+        title="Leads IA" 
+        description="Identifiez vos meilleures opportunités grâce au scoring prédictif et aux recommandations basées sur l'intelligence artificielle."
+      />
       <LeadsHeader stats={stats} />
 
       <div className="grid gap-6 lg:grid-cols-3">

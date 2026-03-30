@@ -22,6 +22,9 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { askCopilot } from '@/lib/actions/copilot'
+import { FormattedMessage } from '@/components/assistant/formatted-message'
+import { motion, AnimatePresence } from 'framer-motion'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 interface Message {
   id: string
@@ -56,20 +59,9 @@ export default function AssistantPage() {
   }, [messages, isLoading])
 
   async function loadMessages() {
-    console.log('Assistant: Début chargement messages...')
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
-      if (authError) {
-        console.error('Assistant: Erreur auth brute:', authError)
-        console.log('Assistant: Message auth:', authError.message)
-        return
-      }
-      if (!user) {
-        console.warn('Assistant: Aucun utilisateur connecté')
-        return
-      }
-
-      console.log('Assistant: Utilisateur récupéré:', user.id)
+      if (authError || !user) return
 
       const { data, error } = await supabase
         .from('assistant_messages')
@@ -78,11 +70,6 @@ export default function AssistantPage() {
         .limit(50)
 
       if (error) {
-        console.error('Assistant: Erreur Supabase brute:', error)
-        console.log('Assistant: Code erreur query:', error.code)
-        console.log('Assistant: Message erreur query:', error.message)
-        console.log('Assistant: Détails erreur query:', error.details)
-
         if (error.code === '42P01') {
           setIsDBReady(false)
           toast.error('⚠️ Tables IA non trouvées. Exécutez le script missing-tables.sql dans Supabase')
@@ -99,8 +86,6 @@ export default function AssistantPage() {
         throw error
       }
 
-      console.log('Assistant: Données reçues:', data?.length || 0, 'messages')
-
       if (data && data.length > 0) {
         setMessages(data)
       } else {
@@ -114,14 +99,8 @@ export default function AssistantPage() {
         ])
       }
     } catch (error: any) {
-      console.error('Assistant - Erreur détaillée:', error)
-      let errorMsg = "Erreur inconnue"
-      if (error?.message) errorMsg = error.message
-      else if (error?.details) errorMsg = error.details
-      else if (typeof error === 'string') errorMsg = error
-
-      console.log('Assistant - Message final:', errorMsg)
-      toast.error(`Impossible de charger l'historique: ${errorMsg}`)
+      if (error.code === '42P01') return
+      toast.error(`Erreur chargement historique : ${error.message || "Inconnue"}`)
     }
   }
 
@@ -143,7 +122,6 @@ export default function AssistantPage() {
     setIsLoading(true)
 
     try {
-      console.log('Assistant Page: handleSend started')
       const { data: { user } } = await supabase.auth.getUser()
 
       // Save user message if DB is ready - protected by try/catch
@@ -168,14 +146,12 @@ export default function AssistantPage() {
             })
           }
         } catch (dbErr) {
-          console.warn('Assistant Page: Database save failed (ignore if tables missing):', dbErr)
+          // Ignore DB errors (missing tables)
         }
       }
 
-      console.log('Assistant Page: Getting AI response...')
       // Get AI Response
       const responseContent = await getAIResponse(userContent)
-      console.log('Assistant Page: AI response received')
 
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -219,73 +195,91 @@ export default function AssistantPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-160px)] flex flex-col animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex-none mb-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/20">
-            <BrainCircuit className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-primary">Assistant IA</h1>
-            <p className="text-muted-foreground">
-              Votre copilote commercial intelligent connecté à vos données
-            </p>
-          </div>
-          <Badge className="ml-auto bg-gradient-to-r from-purple-500 to-pink-500 text-white border-none">
-            <Sparkles className="mr-1 h-3 w-3 animate-pulse" />
-            IA Connectée
-          </Badge>
-        </div>
-      </div>
+    <div className="h-[calc(100vh-100px)] flex flex-col animate-in fade-in duration-500">
+      <PageHeader 
+        title="Assistant IA" 
+        description="Votre copilote personnel pour analyser vos données CRM, rédiger des contenus et optimiser votre stratégie."
+      />
 
       {/* Chat Area */}
       <Card className="flex-1 flex flex-col min-h-0 shadow-xl border-none bg-card/50 backdrop-blur-sm overflow-hidden">
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth"
+          className="flex-1 overflow-y-auto p-6 space-y-8 scroll-smooth"
         >
-          <div className="space-y-6 pb-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {message.role === 'assistant' && (
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 shadow-md">
-                    <Bot className="h-5 w-5 text-white" />
-                  </div>
-                )}
-                <div
-                  className={`max-w-[85%] rounded-2xl px-5 py-3 shadow-sm ${message.role === 'user'
-                    ? 'bg-primary text-primary-foreground rounded-tr-none'
-                    : 'bg-white dark:bg-slate-900 border border-border/50 rounded-tl-none'
-                    }`}
+          <div className="space-y-8 pb-4">
+            <AnimatePresence initial={false}>
+              {messages.map((message) => (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                  <span className={`text-[10px] mt-2 block opacity-50 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
-                    {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-                {message.role === 'user' && (
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md">
-                    <User className="h-5 w-5 text-primary-foreground" />
+                  {message.role === 'assistant' && (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 shadow-lg shadow-purple-500/20">
+                      <Bot className="h-6 w-6 text-white" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[80%] rounded-3xl px-6 py-4 shadow-md transition-all ${
+                      message.role === 'user'
+                        ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-tr-none'
+                        : 'bg-white dark:bg-slate-900 border border-border/40 rounded-tl-none ring-1 ring-black/5'
+                    }`}
+                  >
+                    <div className={message.role === 'user' ? 'text-white' : 'text-slate-800 dark:text-slate-100'}>
+                      {message.role === 'assistant' ? (
+                        <FormattedMessage content={message.content} />
+                      ) : (
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                      )}
+                    </div>
+                    <div className={`text-[10px] mt-3 flex items-center gap-1 opacity-60 ${message.role === 'user' ? 'justify-end text-white/80' : 'justify-start text-muted-foreground'}`}>
+                      {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
                   </div>
-                )}
-              </div>
-            ))}
+                  {message.role === 'user' && (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white dark:bg-slate-800 shadow-lg border border-border/50">
+                      <User className="h-6 w-6 text-purple-600" />
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
             {isLoading && (
-              <div className="flex gap-3 justify-start">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500">
-                  <Bot className="h-5 w-5 text-white" />
+              <motion.div 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex gap-4 justify-start"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 shadow-lg shadow-purple-500/20">
+                  <Bot className="h-6 w-6 text-white" />
                 </div>
-                <div className="bg-white dark:bg-slate-900 border border-border/50 rounded-2xl px-5 py-3">
+                <div className="bg-white dark:bg-slate-900 border border-border/40 rounded-3xl rounded-tl-none px-6 py-4 shadow-md ring-1 ring-black/5">
                   <div className="flex items-center gap-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
-                    <span className="text-sm text-muted-foreground animate-pulse">Réflexion en cours...</span>
+                    <div className="flex gap-1">
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 1 }}
+                        className="h-2 w-2 rounded-full bg-purple-500"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
+                        className="h-2 w-2 rounded-full bg-indigo-500"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
+                        className="h-2 w-2 rounded-full bg-purple-500"
+                      />
+                    </div>
+                    <span className="text-sm text-muted-foreground font-medium italic">Optimisation de votre réponse...</span>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
           </div>
         </div>

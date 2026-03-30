@@ -51,7 +51,7 @@ export async function getBankTransactions(accountId?: string) {
 
     let query = supabase
         .from('bank_transactions')
-        .select('*, bank_account:bank_accounts(name)')
+        .select('*')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
 
@@ -59,9 +59,33 @@ export async function getBankTransactions(accountId?: string) {
         query = query.eq('bank_account_id', accountId)
     }
 
-    const { data, error } = await query
+    const { data: transactionsData, error } = await query
+    const transactions = (transactionsData as BankTransaction[]) || []
 
-    return { data: data as BankTransaction[], error: error?.message }
+    if (!error && transactions.length > 0) {
+        try {
+            const accountIds = [...new Set(transactions.map(t => t.bank_account_id).filter(Boolean))] as string[]
+            if (accountIds.length > 0) {
+                const { data: accounts } = await supabase
+                    .from('bank_accounts')
+                    .select('id, name')
+                    .in('id', accountIds)
+                
+                if (accounts) {
+                    transactions.forEach(t => {
+                        const acc = accounts.find(a => a.id === t.bank_account_id)
+                        if (acc) {
+                            (t as any).bank_account = { name: acc.name }
+                        }
+                    })
+                }
+            }
+        } catch (joinErr) {
+            console.warn('Banking in-memory join failed:', joinErr)
+        }
+    }
+
+    return { data: transactions, error: error?.message }
 }
 
 export async function createBankTransaction(transaction: Partial<BankTransaction>) {

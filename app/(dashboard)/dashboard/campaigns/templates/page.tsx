@@ -88,14 +88,7 @@ export default function EmailTemplatesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Templates d'emails</h1>
-          <p className="text-muted-foreground">
-            Gerez vos modeles de courriels pour vos campagnes
-          </p>
-        </div>
-        
+      <div className="flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>

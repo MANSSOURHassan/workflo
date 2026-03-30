@@ -31,6 +31,7 @@ import {
 import { getCustomization, updateCustomization } from '@/lib/actions/customize'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 import type { Customization } from '@/lib/types/database'
 
@@ -172,19 +173,15 @@ export default function CustomizePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Personnalisation</h1>
-          <p className="text-muted-foreground">
-            Adaptez l'apparence et le comportement de votre CRM à vos préférences
-          </p>
-        </div>
-        <Button onClick={handleSave} disabled={saving}>
+      <PageHeader 
+        title="Personnalisation de l'Espace" 
+        description="Adaptez le CRM à votre image : logo, couleurs, thèmes et préférences régionales pour une expérience sur mesure."
+      >
+        <Button onClick={handleSave} disabled={saving} className="bg-primary hover:shadow-lg shadow-primary/20 transition-all font-semibold">
           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
           Enregistrer les modifications
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Branding */}
       <Card>

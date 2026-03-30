@@ -8,17 +8,17 @@ import { NotificationSettings } from "@/components/settings/notification-setting
 import { IntegrationSettings } from "@/components/settings/integration-settings"
 import { SecuritySettings } from "@/components/settings/security-settings"
 import { RgpdSettings } from "@/components/settings/rgpd-settings"
-import { Key, Webhook, Shield, ExternalLink } from "lucide-react"
+import { Key, Webhook, Shield, ExternalLink, Users } from "lucide-react"
+import { TeamSettings } from "@/components/settings/team-settings"
+import { PageHeader } from "@/components/dashboard/page-header"
 
 export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Paramètres</h1>
-        <p className="text-muted-foreground">
-          Gérez vos préférences et paramètres de compte
-        </p>
-      </div>
+      <PageHeader 
+        title="Paramètres" 
+        description="Personnalisez votre compte, gérez vos notifications et configurez vos intégrations."
+      />
 
       {/* Raccourcis vers pages spécialisées */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -73,8 +73,9 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
           <TabsTrigger value="profile">Profil</TabsTrigger>
+          <TabsTrigger value="team">Équipe</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="integrations">Intégrations</TabsTrigger>
           <TabsTrigger value="security">Sécurité</TabsTrigger>
@@ -83,6 +84,10 @@ export default function SettingsPage() {
 
         <TabsContent value="profile" className="mt-6">
           <ProfileSettings />
+        </TabsContent>
+
+        <TabsContent value="team" className="mt-6">
+          <TeamSettings />
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-6">

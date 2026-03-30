@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getProspect } from '@/lib/actions/prospects'
+import { getProspectActivities } from '@/lib/actions/activities'
+import { ProspectActivities } from '@/components/prospects/prospect-activities'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -50,9 +52,19 @@ const sourceLabels: Record<string, string> = {
 
 export default async function ProspectPage({ params }: ProspectPageProps) {
   const { id } = await params
-  const { data: prospect, error } = await getProspect(id)
+  const [prospectResult, activitiesResult] = await Promise.all([
+    getProspect(id),
+    getProspectActivities(id)
+  ])
 
-  if (error || !prospect) {
+  const { data: prospect, error: prospectError } = prospectResult
+  const activities = activitiesResult.data || []
+
+  if (prospectError) {
+    throw new Error(prospectError)
+  }
+
+  if (!prospect) {
     notFound()
   }
 
@@ -66,18 +78,6 @@ export default async function ProspectPage({ params }: ProspectPageProps) {
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">
-              {prospect.first_name && prospect.last_name
-                ? `${prospect.first_name} ${prospect.last_name}`
-                : prospect.email}
-            </h1>
-            {prospect.job_title && prospect.company && (
-              <p className="text-muted-foreground">
-                {prospect.job_title} chez {prospect.company}
-              </p>
-            )}
-          </div>
         </div>
         <div className="flex items-center gap-2">
           <ProspectActions prospectId={prospect.id} />
@@ -205,18 +205,22 @@ export default async function ProspectPage({ params }: ProspectPageProps) {
             </Card>
           )}
 
-          {/* Notes */}
-          {prospect.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap">{prospect.notes}</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+            {prospect.notes && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="whitespace-pre-wrap">{prospect.notes}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Activities Section */}
+            <div className="pt-4">
+              <ProspectActivities activities={activities} />
+            </div>
+          </div>
 
         {/* Sidebar */}
         <div className="space-y-6">

@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { ImportTransactionsModal } from '@/components/banking/import-transactions-modal'
 import { AddBankAccountModal } from '@/components/banking/add-bank-account-modal'
 import { syncBankData } from '@/lib/actions/banking'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default function BankingPage() {
     const [accounts, setAccounts] = useState<BankAccount[]>([])
@@ -76,13 +77,10 @@ export default function BankingPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Gestion Bancaire</h1>
-                    <p className="text-muted-foreground">
-                        Suivez vos soldes, vos transactions et réconciliez vos factures.
-                    </p>
-                </div>
+            <PageHeader 
+                title="Gestion Bancaire" 
+                description="Suivez vos soldes bancaires en temps réel, synchronisez vos transactions et simplifiez votre rapprochement comptable."
+            >
                 <div className="flex gap-2">
                     <Button
                         variant="outline"
@@ -95,7 +93,7 @@ export default function BankingPage() {
                     </Button>
                     <AddBankAccountModal onSuccess={loadData} />
                 </div>
-            </div>
+            </PageHeader>
 
             {/* Global Balance Card */}
             <Card className="bg-primary text-primary-foreground shadow-lg overflow-hidden relative">

@@ -1,6 +1,6 @@
 "use client"
 
-import { Users, TrendingUp, DollarSign, Target, ArrowUp, ArrowDown } from "lucide-react"
+import { Users, TrendingUp, DollarSign, Target } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -10,41 +10,32 @@ interface ReportsOverviewProps {
 }
 
 export function ReportsOverview({ stats, isLoading }: ReportsOverviewProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "currency",
-      currency: "EUR",
-      maximumFractionDigits: 0,
-    }).format(value)
-  }
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value)
 
   const metrics = [
     {
       title: "Prospects totaux",
-      value: stats?.totalProspects || 0,
-      change: "+12%",
-      trend: "up",
+      value: stats?.data?.totalProspects ?? 0,
+      sub: `${stats?.data?.newProspectsThisMonth ?? 0} ce mois`,
       icon: Users,
     },
     {
       title: "Taux de conversion",
-      value: `${stats?.conversionRate || 0}%`,
-      change: "+3%",
-      trend: "up",
+      value: `${stats?.data?.conversionRate ?? 0}%`,
+      sub: "Prospects convertis",
       icon: Target,
     },
     {
-      title: "Chiffre d'affaires",
-      value: formatCurrency(stats?.totalRevenue || 0),
-      change: "+18%",
-      trend: "up",
+      title: "CA Deals gagnés",
+      value: formatCurrency(stats?.data?.wonDealsValue ?? 0),
+      sub: `${stats?.data?.totalDeals ?? 0} deals au total`,
       icon: DollarSign,
     },
     {
-      title: "Affaires gagnées",
-      value: stats?.wonDeals || 0,
-      change: "-2%",
-      trend: "down",
+      title: "Deals actifs",
+      value: stats?.data?.totalDeals ?? 0,
+      sub: formatCurrency(stats?.data?.totalDealsValue ?? 0) + " en pipeline",
       icon: TrendingUp,
     },
   ]
@@ -80,17 +71,7 @@ export function ReportsOverview({ stats, isLoading }: ReportsOverviewProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">{metric.value}</div>
-            <div className="flex items-center gap-1 mt-1">
-              {metric.trend === "up" ? (
-                <ArrowUp className="h-3 w-3 text-success" />
-              ) : (
-                <ArrowDown className="h-3 w-3 text-destructive" />
-              )}
-              <span className={`text-xs ${metric.trend === "up" ? "text-success" : "text-destructive"}`}>
-                {metric.change}
-              </span>
-              <span className="text-xs text-muted-foreground">vs mois dernier</span>
-            </div>
+            <p className="text-xs text-muted-foreground mt-1">{metric.sub}</p>
           </CardContent>
         </Card>
       ))}

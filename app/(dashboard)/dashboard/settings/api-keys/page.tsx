@@ -104,12 +104,6 @@ export default function APIKeysPage() {
                             <ArrowLeft className="h-4 w-4" />
                         </Link>
                     </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-primary">Clés API</h1>
-                        <p className="text-muted-foreground">
-                            Gérez vos clés d'accès à l'API REST Workflow CRM
-                        </p>
-                    </div>
                 </div>
                 <Button onClick={() => setShowCreateDialog(true)}>
                     <Plus className="h-4 w-4 mr-2" />

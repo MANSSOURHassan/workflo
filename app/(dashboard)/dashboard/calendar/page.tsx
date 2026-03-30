@@ -26,10 +26,12 @@ import {
   Bell,
   Loader2
 } from "lucide-react"
+import { PageHeader } from "@/components/dashboard/page-header"
 import { cn } from "@/lib/utils"
 import { format, addDays, startOfWeek, addWeeks, subWeeks, isSameDay, startOfMonth, endOfMonth } from "date-fns"
 import { fr } from "date-fns/locale"
-import { getCalendarEvents, createCalendarEvent } from "@/lib/actions/calendar"
+import { getCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "@/lib/actions/calendar"
+import { createClient } from "@/lib/supabase/client"
 
 // Internal UI Type
 interface CalendarEvent {
@@ -61,9 +63,18 @@ export default function CalendarPage() {
   // Real data state
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [integration, setIntegration] = useState<any>(null)
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+
+  // Edit/Detail State
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Form State
   const [newEvent, setNewEvent] = useState({
@@ -75,13 +86,32 @@ export default function CalendarPage() {
     prospect: ""
   })
 
+  const [editEvent, setEditEvent] = useState({
+    title: "",
+    type: "meeting" as any,
+    start: "",
+    end: "",
+    description: "",
+  })
+
   // Fetch Data
   useEffect(() => {
     async function fetchEvents() {
       setIsLoading(true)
-      // Fetch a bit more than just the week to cover month view or navigations
       const start = startOfMonth(subWeeks(currentDate, 1))
       const end = endOfMonth(addWeeks(currentDate, 1))
+
+      // Load integration status
+      const { data: { user } } = await createClient().auth.getUser()
+      if (user) {
+        const { data: integr } = await createClient()
+          .from('email_integrations')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('provider', 'gmail')
+          .single()
+        setIntegration(integr)
+      }
 
       const { data, error } = await getCalendarEvents(start, end)
       if (data) {
@@ -92,7 +122,7 @@ export default function CalendarPage() {
           start: new Date(d.start_time),
           end: new Date(d.end_time),
           type: (['meeting', 'call', 'task', 'reminder'].includes(d.event_type) ? d.event_type : 'meeting') as any,
-          isOnline: false, // Could infer from location
+          isOnline: false,
           location: d.location
         }))
         setEvents(mapped)
@@ -105,11 +135,136 @@ export default function CalendarPage() {
     fetchEvents()
   }, [currentDate])
 
+  const handleSync = async () => {
+    setIsSyncing(true)
+    try {
+      const res = await fetch('/api/calendar/sync', { method: 'POST' })
+      const data = await res.json()
+
+      if (data.success) {
+        toast.success(`${data.synced} événements synchronisés depuis Google`)
+        // Refresh events and integration
+        const start = startOfMonth(subWeeks(currentDate, 1))
+        const end = endOfMonth(addWeeks(currentDate, 1))
+        const { data: newEvents } = await getCalendarEvents(start, end)
+        if (newEvents) {
+          setEvents(newEvents.map(d => ({
+            id: d.id,
+            title: d.title,
+            description: d.description,
+            start: new Date(d.start_time),
+            end: new Date(d.end_time),
+            type: d.event_type as any,
+            isOnline: false,
+            location: d.location
+          })))
+        }
+        // Refresh integration status
+        const { data: { user } } = await createClient().auth.getUser()
+        if (user) {
+          const { data: integr } = await createClient()
+            .from('email_integrations')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('provider', 'gmail')
+            .single()
+          setIntegration(integr)
+        }
+      } else {
+        toast.error(data.error || "Erreur lors de la synchronisation")
+      }
+    } catch (error) {
+      toast.error("Erreur réseau")
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
   const navigateWeek = (direction: number) => {
     setCurrentDate(prev => direction > 0 ? addWeeks(prev, 1) : subWeeks(prev, 1))
+  }
+
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEvent(event)
+    setEditEvent({
+      title: event.title,
+      type: event.type,
+      start: format(event.start, "yyyy-MM-dd'T'HH:mm"),
+      end: format(event.end, "yyyy-MM-dd'T'HH:mm"),
+      description: event.description || ""
+    })
+    setIsDetailOpen(true)
+  }
+
+  const handleUpdate = async () => {
+    if (!selectedEvent) return
+    setIsUpdating(true)
+    const { data, error } = await updateCalendarEvent(selectedEvent.id, {
+      title: editEvent.title,
+      description: editEvent.description,
+      event_type: editEvent.type,
+      start_time: editEvent.start,
+      end_time: editEvent.end
+    })
+
+    if (error) {
+      toast.error("Erreur lors de la modification")
+    } else if (data) {
+      toast.success("Événement mis à jour")
+      setEvents(prev => prev.map(e => e.id === selectedEvent.id ? {
+        ...e,
+        title: data.title,
+        description: data.description,
+        start: new Date(data.start_time),
+        end: new Date(data.end_time),
+        type: data.event_type as any
+      } : e))
+      setIsDetailOpen(false)
+    }
+    setIsUpdating(false)
+  }
+
+  const handleDelete = async () => {
+    if (!selectedEvent) return
+    setIsDeleting(true)
+    const { error } = await deleteCalendarEvent(selectedEvent.id)
+    if (error) {
+      toast.error("Erreur lors de la suppression")
+    } else {
+      toast.success("Événement supprimé")
+      setEvents(prev => prev.filter(e => e.id !== selectedEvent.id))
+      setIsDetailOpen(false)
+      setIsDeleteOpen(false)
+    }
+    setIsDeleting(false)
+  }
+
+  const handleReschedule = async (days: number) => {
+    if (!selectedEvent) return
+    setIsUpdating(true)
+    const newStart = addDays(selectedEvent.start, days)
+    const newEnd = addDays(selectedEvent.end, days)
+
+    const { data, error } = await updateCalendarEvent(selectedEvent.id, {
+      start_time: newStart.toISOString(),
+      end_time: newEnd.toISOString()
+    })
+
+    if (error) {
+      toast.error("Erreur lors du report")
+    } else if (data) {
+      toast.success(`Événement reporté de ${days} jour(s)`)
+      setEvents(prev => prev.map(e => e.id === selectedEvent.id ? {
+        ...e,
+        start: new Date(data.start_time),
+        end: new Date(data.end_time)
+      } : e))
+      setIsDetailOpen(false)
+    }
+    setIsUpdating(false)
   }
 
   const handleCreate = async () => {
@@ -135,7 +290,6 @@ export default function CalendarPage() {
       setIsCreateOpen(false)
       setNewEvent({ title: "", type: "meeting", start: "", end: "", description: "", prospect: "" })
 
-      // Optimistic update
       const createdEvent: CalendarEvent = {
         id: data.id,
         title: data.title,
@@ -163,13 +317,8 @@ export default function CalendarPage() {
 
     const top = ((startHour - 8) * 60 + startMinutes) * (60 / 60)
     let height = ((endHour - startHour) * 60 + (endMinutes - startMinutes)) * (60 / 60)
-
-    // Minimum visual height
     height = Math.max(height, 30)
-
-    // Bounds check (simply clip for now if out of 8-20h view)
     const topPx = Math.max(0, top)
-
     return { top: `${topPx}px`, height: `${height}px` }
   }
 
@@ -181,16 +330,14 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Calendrier</h1>
-          <p className="text-muted-foreground">Planifiez vos rendez-vous et synchronisez avec Google Calendar</p>
-        </div>
+      <PageHeader 
+        title="Calendrier" 
+        description="Visualisez et synchronisez vos rendez-vous Google et vos événements CRM."
+      >
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Synchroniser calendrier
+          <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing}>
+            <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
+            {isSyncing ? "Synchronisation..." : "Synchroniser calendrier"}
           </Button>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
@@ -282,10 +429,8 @@ export default function CalendarPage() {
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+      </PageHeader>
 
-
-      {/* Sync Status */}
       <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-100">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -296,10 +441,19 @@ export default function CalendarPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-foreground">Google Calendar</h3>
-                  <Badge className="bg-green-100 text-green-700">Synchronisé</Badge>
+                  <Badge className={cn(
+                    "text-white border-0",
+                    integration?.sync_status === 'success' ? "bg-green-500" :
+                    integration?.sync_status === 'syncing' ? "bg-blue-500" : "bg-red-500"
+                  )}>
+                    {integration ? (integration.sync_status === 'success' ? 'Synchronisé' : 
+                      integration.sync_status === 'syncing' ? 'Sync en cours...' : 'Erreur') : 'Non connecté'}
+                  </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Dernière synchronisation: il y a 2 minutes
+                  {integration?.last_sync_at 
+                    ? `Dernière synchronisation: ${new Date(integration.last_sync_at).toLocaleString('fr-FR')}` 
+                    : "Jamais synchronisé"}
                 </p>
               </div>
             </div>
@@ -318,7 +472,6 @@ export default function CalendarPage() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-4">
-        {/* Calendar View */}
         <div className="lg:col-span-3">
           <Card>
             <CardHeader className="pb-2">
@@ -354,7 +507,11 @@ export default function CalendarPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentDate(new Date())}
+                    onClick={() => {
+                      const today = new Date()
+                      setCurrentDate(today)
+                      setSelectedDate(today)
+                    }}
                   >
                     Aujourd'hui
                   </Button>
@@ -362,10 +519,10 @@ export default function CalendarPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {/* Week Header */}
-              <div className="grid grid-cols-8 border-b">
+              {/* Header */}
+              <div className={cn("grid border-b", view === "week" ? "grid-cols-8" : "grid-cols-[100px_1fr]")}>
                 <div className="p-2 text-center text-xs font-medium text-muted-foreground border-r" />
-                {weekDays.map((day, index) => (
+                {(view === "week" ? weekDays : [currentDate]).map((day, index) => (
                   <div
                     key={index}
                     className={cn(
@@ -374,7 +531,7 @@ export default function CalendarPage() {
                     )}
                   >
                     <p className="text-xs font-medium text-muted-foreground">
-                      {format(day, "EEE", { locale: fr })}
+                      {format(day, "EEEE d MMMM", { locale: fr })}
                     </p>
                     <p className={cn(
                       "text-lg font-semibold",
@@ -388,7 +545,7 @@ export default function CalendarPage() {
 
               {/* Time Grid */}
               <div className="relative overflow-auto max-h-[600px]">
-                <div className="grid grid-cols-8 min-h-[720px]">
+                <div className={cn("grid min-h-[720px]", view === "week" ? "grid-cols-8" : "grid-cols-[100px_1fr]")}>
                   {/* Time Labels */}
                   <div className="border-r">
                     {hours.map((hour) => (
@@ -399,18 +556,18 @@ export default function CalendarPage() {
                   </div>
 
                   {/* Day Columns */}
-                  {weekDays.map((day, dayIndex) => (
+                  {(view === "week" ? weekDays : [currentDate]).map((day, dayIndex) => (
                     <div key={dayIndex} className="relative border-r last:border-r-0">
                       {hours.map((hour) => (
                         <div key={hour} className="h-[60px] border-b" />
                       ))}
-                      {/* Events */}
-                      {getEventsForDay(day).map((event) => {
+                      {getEventsForDay(day).map((event: CalendarEvent) => {
                         const position = getEventPosition(event)
-                        const config = eventTypeConfig[event.type]
+                        const config = eventTypeConfig[event.type as keyof typeof eventTypeConfig]
                         return (
                           <div
                             key={event.id}
+                            onClick={() => handleEventClick(event)}
                             className={cn(
                               "absolute left-1 right-1 rounded-md p-1.5 text-xs text-white overflow-hidden cursor-pointer hover:opacity-90 transition-opacity",
                               config.color
@@ -432,31 +589,37 @@ export default function CalendarPage() {
           </Card>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Mini Calendar */}
           <Card>
             <CardContent className="p-3">
               <Calendar
                 mode="single"
                 selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
+                onSelect={(date) => {
+                  if (date) {
+                    setSelectedDate(date)
+                    setCurrentDate(date)
+                  }
+                }}
                 className="w-full"
               />
             </CardContent>
           </Card>
 
-          {/* Upcoming Events */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Prochains événements</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {upcomingEvents.map((event) => {
-                const config = eventTypeConfig[event.type]
+              {upcomingEvents.map((event: CalendarEvent) => {
+                const config = eventTypeConfig[event.type as keyof typeof eventTypeConfig]
                 const EventIcon = config.icon
                 return (
-                  <div key={event.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                  <div 
+                    key={event.id} 
+                    onClick={() => handleEventClick(event)}
+                    className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                  >
                     <div className={cn(
                       "flex h-8 w-8 items-center justify-center rounded-lg text-white shrink-0",
                       config.color
@@ -481,7 +644,6 @@ export default function CalendarPage() {
             </CardContent>
           </Card>
 
-          {/* Legend */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Légende</CardTitle>
@@ -501,6 +663,108 @@ export default function CalendarPage() {
           </Card>
         </div>
       </div>
+
+      {/* Edit/Detail Dialog */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Détails de l'événement</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Titre</Label>
+              <Input
+                value={editEvent.title}
+                onChange={(e) => setEditEvent({ ...editEvent, title: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select
+                  value={editEvent.type}
+                  onValueChange={(val) => setEditEvent({ ...editEvent, type: val as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="meeting">Réunion</SelectItem>
+                    <SelectItem value="call">Appel</SelectItem>
+                    <SelectItem value="task">Tâche</SelectItem>
+                    <SelectItem value="reminder">Rappel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 flex flex-col justify-end">
+                <Button variant="outline" size="sm" onClick={() => handleReschedule(1)}>
+                  Reporter à demain
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date de début</Label>
+                <Input
+                  type="datetime-local"
+                  value={editEvent.start}
+                  onChange={(e) => setEditEvent({ ...editEvent, start: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Date de fin</Label>
+                <Input
+                  type="datetime-local"
+                  value={editEvent.end}
+                  onChange={(e) => setEditEvent({ ...editEvent, end: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={editEvent.description}
+                onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button
+              variant="destructive"
+              onClick={() => setIsDeleteOpen(true)}
+              disabled={isUpdating || isDeleting}
+            >
+              Supprimer
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsDetailOpen(false)}>Annuler</Button>
+              <Button onClick={handleUpdate} disabled={isUpdating}>
+                {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Enregistrer
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer l'événement ?</DialogTitle>
+            <DialogDescription>
+              Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

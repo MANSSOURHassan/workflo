@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { isValidEmail, validatePassword, sanitizeForDb, checkRateLimit } from '@/lib/security/validation'
+import { logAuditAction } from '@/lib/security/audit'
 
 export async function signUp(formData: FormData) {
   const supabase = await createClient()
@@ -12,6 +13,11 @@ export async function signUp(formData: FormData) {
   const firstName = sanitizeForDb(formData.get('firstName') as string, 100)
   const lastName = sanitizeForDb(formData.get('lastName') as string, 100)
   const companyName = sanitizeForDb(formData.get('companyName') as string, 200)
+  const plan = (formData.get('plan') as string) || 'starter'
+
+  // Valider le plan
+  const validPlans = ['starter', 'pro', 'enterprise']
+  const chosenPlan = validPlans.includes(plan) ? plan : 'starter'
 
   // Rate limiting
   const rateCheck = checkRateLimit(`signup:${email}`, 5, 3600000) // 5 attempts per hour
@@ -30,7 +36,7 @@ export async function signUp(formData: FormData) {
     return { error: passwordValidation.errors.join('. ') }
   }
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -40,12 +46,31 @@ export async function signUp(formData: FormData) {
         first_name: firstName,
         last_name: lastName,
         company_name: companyName,
+        plan: chosenPlan,
       },
     },
   })
 
   if (error) {
     return { error: error.message }
+  }
+
+  // Mettre à jour le plan dans profiles immédiatement (en plus des metadata)
+  if (data.user) {
+    await supabase
+      .from('profiles')
+      .update({ plan: chosenPlan })
+      .eq('id', data.user.id)
+
+    // Log signup action
+    await logAuditAction({
+      action: 'profile.update', // Or 'auth.signup'
+      entityType: 'profile',
+      entityId: data.user.id,
+      description: `Nouvel utilisateur inscrit (Plan: ${chosenPlan})`,
+      metadata: { plan: chosenPlan, email },
+      userObj: data.user
+    })
   }
 
   redirect('/auth/sign-up-success')
@@ -116,6 +141,18 @@ export async function updatePassword(formData: FormData) {
 
   if (error) {
     return { error: error.message }
+  }
+
+  // Log password change
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    await logAuditAction({
+      action: 'auth.password_change',
+      entityType: 'user',
+      entityId: user.id,
+      description: 'Changement de mot de passe utilisateur',
+      userObj: user
+    })
   }
 
   redirect('/dashboard')

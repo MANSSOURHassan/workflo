@@ -135,12 +135,6 @@ export default function SecurityPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-primary">Sécurité & Confidentialité</h1>
-        <p className="text-muted-foreground">
-          Gérez la sécurité de votre compte et vos préférences de confidentialité
-        </p>
-      </div>
 
       {/* Security Score */}
       <Card className="bg-gradient-to-r from-green-50 to-transparent border-green-200">

@@ -5,14 +5,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { CreditCard, Lock, ShoppingCart, Loader2 } from 'lucide-react'
+import { CreditCard, Lock, ShoppingCart, Loader2, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface CheckoutDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     mode: 'payment_method' | 'checkout'
-    plan?: { name: string, price: string } | null
+    plan?: { name: string, price: string, features?: string[] } | null
     onConfirm: () => Promise<void>
 }
 
@@ -67,7 +67,7 @@ export function CheckoutDialog({ open, onOpenChange, mode, plan, onConfirm }: Ch
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>
                         {mode === 'checkout' ? 'Panier & Paiement' : 'Mettre à jour le paiement'}
@@ -89,7 +89,20 @@ export function CheckoutDialog({ open, onOpenChange, mode, plan, onConfirm }: Ch
                             <span>Plan {plan.name} (Mensuel)</span>
                             <span className="font-bold">{plan.price}€</span>
                         </div>
-                        <div className="border-t border-border pt-2 flex justify-between items-center font-bold text-lg">
+                        {plan.features && plan.features.length > 0 && (
+                            <div className="pt-2 text-xs text-muted-foreground border-t border-border mt-2 space-y-1">
+                                <p className="font-semibold text-foreground mb-2">Fonctionnalités incluses :</p>
+                                <ul className="space-y-2">
+                                    {plan.features.map((feature, idx) => (
+                                        <li key={idx} className="flex items-start gap-2">
+                                            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                                            <span>{feature}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        <div className="border-t border-border pt-2 flex justify-between items-center font-bold text-lg mt-2">
                             <span>Total à payer</span>
                             <span>{plan.price}€</span>
                         </div>

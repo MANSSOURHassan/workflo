@@ -51,6 +51,9 @@ CREATE TABLE IF NOT EXISTS prospects (
   phone VARCHAR(20),
   website VARCHAR(500),
   linkedin_url VARCHAR(500),
+  address VARCHAR(300),
+  city VARCHAR(100),
+  country VARCHAR(100),
   source VARCHAR(50) DEFAULT 'manual',
   status VARCHAR(20) DEFAULT 'new',
   tags TEXT[] DEFAULT '{}',
@@ -165,7 +168,7 @@ CREATE TABLE IF NOT EXISTS activities (
   deal_id UUID REFERENCES deals(id) ON DELETE CASCADE,
   type VARCHAR(50) NOT NULL,
   title VARCHAR(300),
-  content TEXT,
+  description TEXT,
   metadata JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

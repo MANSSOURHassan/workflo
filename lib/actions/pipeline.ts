@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidateTag } from 'next/cache'
 import type { Pipeline, PipelineStage, Deal, DealStatus } from '@/lib/types/database'
-import { sanitizeForDb } from '@/lib/security/validation'
+import { pipelineSchema, stageSchema, dealSchema, isValidUUID } from '@/lib/security/validation'
+import { logAuditAction } from '@/lib/security/audit'
 
 export async function getPipelines() {
   const supabase = await createClient()
@@ -243,12 +244,19 @@ export async function createPipeline(formData: FormData) {
     return { error: 'Non autorisé' }
   }
 
+  // Validate with Zod
+  const rawData = Object.fromEntries(formData.entries())
+  const validation = pipelineSchema.safeParse(rawData)
+  if (!validation.success) {
+    return { error: 'Validation échouée: ' + validation.error.errors.map(e => e.message).join(', ') }
+  }
+
   const { data, error } = await supabase
     .from('pipelines')
     .insert({
       user_id: user.id,
-      name: sanitizeForDb(formData.get('name') as string, 100),
-      is_default: false
+      name: validation.data.name,
+      is_default: !!validation.data.is_default
     })
     .select()
     .single()
@@ -256,6 +264,14 @@ export async function createPipeline(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit
+  await logAuditAction({
+    action: 'pipeline.create',
+    entityType: 'pipeline',
+    entityId: data.id,
+    newData: data
+  })
 
   // Auto-generate default stages for the new pipeline to avoid empty Kanban
   const defaultStages = [
@@ -296,14 +312,24 @@ export async function createPipelineStage(pipelineId: string, formData: FormData
 
   const maxPosition = stages?.[0]?.position ?? -1
 
+  // Validate with Zod
+  const rawData = Object.fromEntries(formData.entries())
+  // Transform types for Zod
+  if (rawData.probability) (rawData as any).probability = parseInt(rawData.probability as string)
+  
+  const validation = stageSchema.safeParse(rawData)
+  if (!validation.success) {
+    return { error: 'Validation échouée: ' + validation.error.errors.map(e => e.message).join(', ') }
+  }
+
   const { data, error } = await supabase
     .from('pipeline_stages')
     .insert({
       pipeline_id: pipelineId,
-      name: sanitizeForDb(formData.get('name') as string, 100),
+      name: validation.data.name,
       position: maxPosition + 1,
-      color: formData.get('color') as string || '#6366F1',
-      probability: parseInt(formData.get('probability') as string) || 0
+      color: validation.data.color || '#6366F1',
+      probability: validation.data.probability || 0
     })
     .select()
     .single()
@@ -311,6 +337,14 @@ export async function createPipelineStage(pipelineId: string, formData: FormData
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit
+  await logAuditAction({
+    action: 'pipeline.update', // stage.create ? using pipeline as prefix
+    entityType: 'pipeline_stage',
+    entityId: data.id,
+    newData: data
+  })
 
   revalidateTag('pipelines', 'max')
   return { data }
@@ -346,7 +380,18 @@ export async function getDeals(pipelineId?: string) {
   return { data: data as (Deal & { prospect: any, stage: PipelineStage, closer?: any })[], error: error?.message }
 }
 
-export async function createDeal(formData: FormData) {
+export interface CreateDealData {
+  pipeline_id: string
+  stage_id: string
+  prospect_id?: string | null
+  title: string
+  value?: number
+  currency?: string
+  expected_close_date?: string | null
+  notes?: string
+}
+
+export async function createDeal(data: CreateDealData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -354,20 +399,19 @@ export async function createDeal(formData: FormData) {
     return { error: 'Non autorisé' }
   }
 
-  const deal = {
-    user_id: user.id,
-    pipeline_id: formData.get('pipeline_id') as string,
-    stage_id: formData.get('stage_id') as string,
-    prospect_id: formData.get('prospect_id') as string || null,
-    name: sanitizeForDb(formData.get('name') as string, 200),
-    value: parseFloat(formData.get('value') as string) || 0,
-    currency: 'EUR',
-    status: 'open' as DealStatus,
-    expected_close_date: formData.get('expected_close_date') as string || null,
-    notes: sanitizeForDb(formData.get('notes') as string, 5000),
+  // Validate with Zod
+  const validation = dealSchema.safeParse(data)
+  if (!validation.success) {
+    return { error: 'Validation échouée: ' + validation.error.errors.map(e => e.message).join(', ') }
   }
 
-  const { data, error } = await supabase
+  const deal = {
+    ...validation.data,
+    user_id: user.id,
+    status: 'open' as DealStatus,
+  }
+
+  const { data: insertedData, error } = await supabase
     .from('deals')
     .insert(deal)
     .select()
@@ -377,8 +421,16 @@ export async function createDeal(formData: FormData) {
     return { error: error.message }
   }
 
+  // Log audit
+  await logAuditAction({
+    action: 'deal.create',
+    entityType: 'deal',
+    entityId: insertedData.id,
+    newData: insertedData
+  })
+
   revalidateTag('deals', 'max')
-  return { data }
+  return { data: insertedData }
 }
 
 export async function updateDealStage(dealId: string, stageId: string) {
@@ -389,6 +441,14 @@ export async function updateDealStage(dealId: string, stageId: string) {
     return { error: 'Non autorisé' }
   }
 
+  // Get old data
+  const { data: oldData } = await supabase
+    .from('deals')
+    .select('*')
+    .eq('id', dealId)
+    .eq('user_id', user.id)
+    .single()
+
   const { error } = await supabase
     .from('deals')
     .update({ stage_id: stageId })
@@ -398,6 +458,15 @@ export async function updateDealStage(dealId: string, stageId: string) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit
+  await logAuditAction({
+    action: 'deal.update',
+    entityType: 'deal',
+    entityId: dealId,
+    oldData,
+    newData: { stage_id: stageId }
+  })
 
   revalidateTag('deals', 'max')
   return { success: true }
@@ -410,6 +479,14 @@ export async function updateDealStatus(dealId: string, status: DealStatus) {
   if (!user) {
     return { error: 'Non autorisé' }
   }
+
+  // Get old data for audit
+  const { data: oldData } = await supabase
+    .from('deals')
+    .select('*')
+    .eq('id', dealId)
+    .eq('user_id', user.id)
+    .single()
 
   const updates: Partial<Deal> = {
     status,
@@ -426,6 +503,15 @@ export async function updateDealStatus(dealId: string, status: DealStatus) {
     return { error: error.message }
   }
 
+  // Log audit
+  await logAuditAction({
+    action: 'deal.update',
+    entityType: 'deal',
+    entityId: dealId,
+    oldData,
+    newData: updates
+  })
+
   revalidateTag('deals', 'max')
   return { success: true }
 }
@@ -438,6 +524,14 @@ export async function deleteDeal(id: string) {
     return { error: 'Non autorisé' }
   }
 
+  // Get old data
+  const { data: oldData } = await supabase
+    .from('deals')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
   const { error } = await supabase
     .from('deals')
     .delete()
@@ -447,6 +541,14 @@ export async function deleteDeal(id: string) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit
+  await logAuditAction({
+    action: 'deal.delete',
+    entityType: 'deal',
+    entityId: id,
+    oldData
+  })
 
   revalidateTag('deals', 'max')
   return { success: true }

@@ -71,12 +71,6 @@ export default function RGPDPage() {
 
     return (
         <div className="p-6 space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-primary">Conformité RGPD</h1>
-                <p className="text-muted-foreground">
-                    Gérez vos données personnelles conformément au RGPD
-                </p>
-            </div>
 
             {/* Statut de conformité */}
             <Card className="border-success/50 bg-success/5">

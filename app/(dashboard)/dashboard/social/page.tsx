@@ -67,6 +67,7 @@ import { getSocialStats, SocialStats } from '@/lib/actions/social'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line } from 'recharts'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 interface SocialAccount {
   id: string
@@ -408,19 +409,15 @@ export default function SocialPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Réseaux Sociaux</h1>
-          <p className="text-muted-foreground">Connectez et gérez tous vos réseaux sociaux en un seul endroit</p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setIsPostDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nouvelle publication
-          </Button>
-        </div>
-      </div>
+      <PageHeader 
+        title="Réseaux Sociaux" 
+        description="Gérez votre présence sur toutes les plateformes, programmez vos publications et analysez votre engagement."
+      >
+        <Button onClick={() => setIsPostDialogOpen(true)} className="bg-primary hover:shadow-lg shadow-primary/20 transition-all font-semibold">
+          <Plus className="mr-2 h-4 w-4" />
+          Nouvelle publication
+        </Button>
+      </PageHeader>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-5">

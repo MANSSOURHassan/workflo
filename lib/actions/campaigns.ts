@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidateTag } from 'next/cache'
 import type { Campaign, CampaignStatus, CampaignType, EmailTemplate } from '@/lib/types/database'
-import { validateCampaignInput, sanitizeForDb } from '@/lib/security/validation'
+import { campaignSchema, emailTemplateSchema, isValidUUID } from '@/lib/security/validation'
+import { logAuditAction } from '@/lib/security/audit'
 
 export async function getCampaigns(params?: {
   status?: CampaignStatus
@@ -84,20 +85,17 @@ export async function createCampaign(formData: FormData) {
     return { error: 'Non autorisé' }
   }
 
-  // Validate input
-  const validation = validateCampaignInput(formData)
-  if (!validation.valid) {
-    return { error: validation.errors.join('. ') }
+  // Validate input with Zod
+  const rawData = Object.fromEntries(formData.entries())
+  const validation = campaignSchema.safeParse(rawData)
+  if (!validation.success) {
+    return { error: 'Validation échouée: ' + validation.error.errors.map(e => e.message).join(', ') }
   }
 
   const campaign = {
+    ...validation.data,
     user_id: user.id,
-    name: sanitizeForDb(formData.get('name') as string, 200),
-    type: (formData.get('type') as CampaignType) || 'email',
     status: 'draft' as CampaignStatus,
-    subject: sanitizeForDb(formData.get('subject') as string, 500),
-    content: sanitizeForDb(formData.get('content') as string, 10000),
-    scheduled_at: formData.get('scheduled_at') as string || null,
   }
 
   const { data, error } = await supabase
@@ -109,6 +107,14 @@ export async function createCampaign(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit
+  await logAuditAction({
+    action: 'campaign.create',
+    entityType: 'campaign',
+    entityId: data.id,
+    newData: data
+  })
 
   revalidateTag('campaigns', 'max')
   return { data }
@@ -122,23 +128,24 @@ export async function updateCampaign(id: string, formData: FormData) {
     return { error: 'Non autorisé' }
   }
 
-  // Validate input
-  const validation = validateCampaignInput(formData)
-  if (!validation.valid) {
-    return { error: validation.errors.join('. ') }
+  // Validate input with Zod (partial update)
+  const rawData = Object.fromEntries(formData.entries())
+  const validation = campaignSchema.partial().safeParse(rawData)
+  if (!validation.success) {
+    return { error: 'Validation échouée: ' + validation.error.errors.map(e => e.message).join(', ') }
   }
 
-  const updates = {
-    name: sanitizeForDb(formData.get('name') as string, 200),
-    type: formData.get('type') as CampaignType,
-    subject: sanitizeForDb(formData.get('subject') as string, 500),
-    content: sanitizeForDb(formData.get('content') as string, 10000),
-    scheduled_at: formData.get('scheduled_at') as string || null,
-  }
+  // Get old data for audit
+  const { data: oldData } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
 
   const { data, error } = await supabase
     .from('campaigns')
-    .update(updates)
+    .update(validation.data)
     .eq('id', id)
     .eq('user_id', user.id)
     .select()
@@ -147,6 +154,15 @@ export async function updateCampaign(id: string, formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit
+  await logAuditAction({
+    action: 'campaign.update',
+    entityType: 'campaign',
+    entityId: id,
+    oldData,
+    newData: data
+  })
 
   revalidateTag('campaigns', 'max')
   return { data }
@@ -170,6 +186,14 @@ export async function updateCampaignStatus(id: string, status: CampaignStatus) {
     return { error: error.message }
   }
 
+  // Log audit
+  await logAuditAction({
+    action: 'campaign.update', // Or 'campaign.status_change'
+    entityType: 'campaign',
+    entityId: id,
+    newData: { status }
+  })
+
   revalidateTag('campaigns', 'max')
   return { success: true }
 }
@@ -182,6 +206,14 @@ export async function deleteCampaign(id: string) {
     return { error: 'Non autorisé' }
   }
 
+  // Get old data
+  const { data: oldData } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
   const { error } = await supabase
     .from('campaigns')
     .delete()
@@ -191,6 +223,14 @@ export async function deleteCampaign(id: string) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit
+  await logAuditAction({
+    action: 'campaign.delete',
+    entityType: 'campaign',
+    entityId: id,
+    oldData
+  })
 
   revalidateTag('campaigns', 'max')
   return { success: true }
@@ -255,16 +295,26 @@ export async function createEmailTemplate(formData: FormData) {
     return { error: 'Non autorisé' }
   }
 
-  const variablesString = formData.get('variables') as string
-  const variables = variablesString ? variablesString.split(',').map(v => v.trim()).filter(Boolean) : []
+  const rawData = Object.fromEntries(formData.entries())
+  if (rawData.variables) {
+    (rawData as any).variables = (rawData.variables as string).split(',').map(v => v.trim()).filter(Boolean)
+  } else {
+    (rawData as any).variables = []
+  }
+  
+  // Transform is_public to boolean if it's a string
+  if (rawData.is_public === 'true') (rawData as any).is_public = true
+  if (rawData.is_public === 'false') (rawData as any).is_public = false
+
+  const validation = emailTemplateSchema.safeParse(rawData)
+  if (!validation.success) {
+    return { error: 'Validation échouée: ' + validation.error.errors.map(e => e.message).join(', ') }
+  }
 
   const template = {
+    ...validation.data,
     user_id: user.id,
-    name: formData.get('name') as string,
-    subject: formData.get('subject') as string,
-    content: formData.get('content') as string,
-    variables,
-    is_public: formData.get('is_public') === 'true',
+    is_public: !!validation.data.is_public
   }
 
   const { data, error } = await supabase
@@ -276,6 +326,14 @@ export async function createEmailTemplate(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit
+  await logAuditAction({
+    action: 'campaign.create', // template.create ? let's use a consistent prefix or specific ones
+    entityType: 'email_template',
+    entityId: data.id,
+    newData: data
+  })
 
   revalidateTag('templates', 'max')
   return { data }
@@ -289,6 +347,14 @@ export async function deleteEmailTemplate(id: string) {
     return { error: 'Non autorisé' }
   }
 
+  // Get old data
+  const { data: oldData } = await supabase
+    .from('email_templates')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
   const { error } = await supabase
     .from('email_templates')
     .delete()
@@ -298,6 +364,14 @@ export async function deleteEmailTemplate(id: string) {
   if (error) {
     return { error: error.message }
   }
+
+  // Log audit
+  await logAuditAction({
+    action: 'campaign.delete',
+    entityType: 'email_template',
+    entityId: id,
+    oldData
+  })
 
   revalidateTag('templates', 'max')
   return { success: true }

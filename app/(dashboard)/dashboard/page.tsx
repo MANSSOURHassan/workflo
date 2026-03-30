@@ -7,10 +7,15 @@ import { TopProspects } from '@/components/dashboard/top-prospects'
 import { RecentActivity } from '@/components/dashboard/recent-activity'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AIAdvice } from '@/components/dashboard/ai-advice'
+import { PageHeader } from '@/components/dashboard/page-header'
 
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
+      <PageHeader 
+        title="Tableau de bord" 
+        description="Bienvenue ! Voici un aperçu de vos performances et de vos activités récentes."
+      />
       <AIAdvice />
 
       {/* Stats Overview */}
