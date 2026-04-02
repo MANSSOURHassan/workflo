@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, CheckCircle2, XCircle, Users, LogIn } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
-export default function InvitationPage() {
+function InvitationContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const token = searchParams.get('token')
@@ -151,5 +151,13 @@ export default function InvitationPage() {
                 </CardContent>
             </Card>
         </div>
+    )
+}
+
+export default function InvitationPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-4"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <InvitationContent />
+        </Suspense>
     )
 }
