@@ -1,0 +1,58 @@
+﻿.next/dev/types/validator.ts(756,31): error TS2344: Type 'typeof import("C:/Users/hassa/OneDrive - umontpellier.fr/Bureau/workflow_crm/app/api/v1/prospects/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/v1/prospects/[id]">'.
+  Types of property 'GET' are incompatible.
+    Type '(request: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ data: any; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(756,31): error TS2344: Type 'typeof import("C:/Users/hassa/OneDrive - umontpellier.fr/Bureau/workflow_crm/app/api/v1/prospects/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/v1/prospects/[id]">'.
+  Types of property 'GET' are incompatible.
+    Type '(request: NextRequest, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ error: string; }> | NextResponse<{ data: any; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+app/(dashboard)/dashboard/campaigns/templates/page.tsx(36,5): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '() => Promise<{ data: EmailTemplate[]; error: string | undefined; }>' has no properties in common with type 'SWRConfiguration<EmailTemplate[], any, BareFetcher<EmailTemplate[]>>'.
+app/(dashboard)/dashboard/campaigns/templates/page.tsx(52,48): error TS2345: Argument of type '{ name: string; subject: string; content: string; category: string; }' is not assignable to parameter of type 'FormData'.
+  Type '{ name: string; subject: string; content: string; category: string; }' is missing the following properties from type 'FormData': append, delete, get, getAll, and 7 more.
+app/(dashboard)/dashboard/campaigns/templates/page.tsx(209,27): error TS2339: Property 'category' does not exist on type 'EmailTemplate'.
+app/(dashboard)/dashboard/campaigns/templates/page.tsx(211,31): error TS2339: Property 'category' does not exist on type 'EmailTemplate'.
+app/(dashboard)/dashboard/recent/page.tsx(28,69): error TS2339: Property 'prospect' does not exist on type '{ prospect: { id: any; first_name: any; last_name: any; company: any; } | undefined; } | { prospect: undefined; } | {}'.
+  Property 'prospect' does not exist on type '{}'.
+app/(dashboard)/dashboard/recent/page.tsx(29,53): error TS2339: Property 'prospect' does not exist on type '{ prospect: { id: any; first_name: any; last_name: any; company: any; } | undefined; } | { prospect: undefined; } | {}'.
+  Property 'prospect' does not exist on type '{}'.
+app/(dashboard)/dashboard/recent/page.tsx(29,90): error TS2339: Property 'prospect' does not exist on type '{ prospect: { id: any; first_name: any; last_name: any; company: any; } | undefined; } | { prospect: undefined; } | {}'.
+  Property 'prospect' does not exist on type '{}'.
+app/(dashboard)/dashboard/recent/page.tsx(30,60): error TS2339: Property 'prospect' does not exist on type '{ prospect: { id: any; first_name: any; last_name: any; company: any; } | undefined; } | { prospect: undefined; } | {}'.
+  Property 'prospect' does not exist on type '{}'.
+app/(dashboard)/dashboard/recent/page.tsx(30,97): error TS2339: Property 'prospect' does not exist on type '{ prospect: { id: any; first_name: any; last_name: any; company: any; } | undefined; } | { prospect: undefined; } | {}'.
+  Property 'prospect' does not exist on type '{}'.
+app/(dashboard)/dashboard/recent/page.tsx(31,57): error TS2339: Property 'prospect' does not exist on type '{ prospect: { id: any; first_name: any; last_name: any; company: any; } | undefined; } | { prospect: undefined; } | {}'.
+  Property 'prospect' does not exist on type '{}'.
+app/(dashboard)/dashboard/recent/page.tsx(78,104): error TS2339: Property 'prospect' does not exist on type '{ prospect: { id: any; first_name: any; last_name: any; company: any; } | undefined; } | {}'.
+  Property 'prospect' does not exist on type '{}'.
+app/api/stripe/webhook/route.ts(58,77): error TS2339: Property 'current_period_start' does not exist on type 'Response<Subscription>'.
+app/api/stripe/webhook/route.ts(59,75): error TS2339: Property 'current_period_end' does not exist on type 'Response<Subscription>'.
+components/campaigns/campaigns-list.tsx(176,33): error TS2339: Property 'total_recipients' does not exist on type 'Campaign'.
+components/campaigns/campaigns-list.tsx(180,31): error TS2339: Property 'total_recipients' does not exist on type 'Campaign'.
+components/campaigns/campaigns-list.tsx(180,60): error TS2339: Property 'total_recipients' does not exist on type 'Campaign'.
+components/campaigns/campaigns-list.tsx(181,49): error TS2551: Property 'opened_count' does not exist on type 'Campaign'. Did you mean 'open_count'?
+components/campaigns/campaigns-list.tsx(181,79): error TS2339: Property 'total_recipients' does not exist on type 'Campaign'.
+components/campaigns/campaigns-list.tsx(185,31): error TS2339: Property 'total_recipients' does not exist on type 'Campaign'.
+components/campaigns/campaigns-list.tsx(185,60): error TS2339: Property 'total_recipients' does not exist on type 'Campaign'.
+components/campaigns/campaigns-list.tsx(186,49): error TS2551: Property 'clicked_count' does not exist on type 'Campaign'. Did you mean 'click_count'?
+components/campaigns/campaigns-list.tsx(186,80): error TS2339: Property 'total_recipients' does not exist on type 'Campaign'.
+lib/actions/customize.ts(149,5): error TS2554: Expected 2 arguments, but got 1.
+lib/actions/settings-advanced.ts(54,5): error TS2554: Expected 2 arguments, but got 1.
+lib/actions/settings-advanced.ts(72,5): error TS2554: Expected 2 arguments, but got 1.
+lib/actions/settings-advanced.ts(122,5): error TS2554: Expected 2 arguments, but got 1.
+lib/actions/settings-advanced.ts(140,5): error TS2554: Expected 2 arguments, but got 1.
+lib/actions/settings-advanced.ts(158,5): error TS2554: Expected 2 arguments, but got 1.
+lib/actions/webhooks.ts(85,5): error TS2554: Expected 2 arguments, but got 1.
+lib/actions/webhooks.ts(120,5): error TS2554: Expected 2 arguments, but got 1.
+lib/actions/webhooks.ts(143,5): error TS2554: Expected 2 arguments, but got 1.
+lib/actions/webhooks.ts(236,5): error TS2554: Expected 2 arguments, but got 1.
+lib/stripe.ts(5,5): error TS2322: Type '"2024-10-28.acacia"' is not assignable to type '"2026-03-25.dahlia"'.
+tmp_test.ts(2,25): error TS2307: Cannot find module 'dotenv' or its corresponding type declarations.
