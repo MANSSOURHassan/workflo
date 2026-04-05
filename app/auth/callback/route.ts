@@ -10,7 +10,12 @@ export async function GET(request: Request) {
         const supabase = await createClient()
         const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
-        if (!error && data.user) {
+        if (error) {
+            console.error('Erreur exchangeCodeForSession:', error.message)
+            return NextResponse.redirect(`${origin}/auth/error?message=${encodeURIComponent(error.message)}`)
+        }
+
+        if (data.user) {
             // Récupérer le plan depuis les metadata (défini lors de l'inscription)
             const chosenPlan = data.user.user_metadata?.plan || 'starter'
             const validPlans = ['starter', 'pro', 'enterprise']
@@ -31,6 +36,6 @@ export async function GET(request: Request) {
         }
     }
 
-    // Return the user to an error page with instructions
-    return NextResponse.redirect(`${origin}/auth/error`)
+    // Return the user to an error page with instructions si pas de code
+    return NextResponse.redirect(`${origin}/auth/error?message=Code+d'authentification+manquant`)
 }

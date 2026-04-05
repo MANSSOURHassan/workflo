@@ -1,9 +1,16 @@
+'use client'
+
+import { Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertTriangle, TrendingUp } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 
-export default function AuthErrorPage() {
+function ErrorContent() {
+  const searchParams = useSearchParams()
+  const message = searchParams.get('message')
+
   return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-muted/30">
       <Card className="w-full max-w-md text-center">
@@ -18,8 +25,8 @@ export default function AuthErrorPage() {
             <span className="font-bold">Workflow CRM</span>
           </div>
           <CardTitle className="text-2xl font-bold">Erreur d&apos;authentification</CardTitle>
-          <CardDescription className="text-base">
-            Une erreur est survenue lors de la connexion. Veuillez réessayer.
+          <CardDescription className="text-base text-destructive">
+            {message ? message : "Une erreur est survenue lors de la connexion. Veuillez réessayer."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -37,5 +44,13 @@ export default function AuthErrorPage() {
         </CardFooter>
       </Card>
     </div>
+  )
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
+      <ErrorContent />
+    </Suspense>
   )
 }
