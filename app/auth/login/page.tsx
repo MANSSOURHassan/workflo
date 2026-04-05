@@ -70,7 +70,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-sm text-sidebar-foreground/60">
-          Utilisé par plus de 2 500 entreprises en France
+          Utilisé par plus de 250 entreprises en France
         </p>
       </div>
 
