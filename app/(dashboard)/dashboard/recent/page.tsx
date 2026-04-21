@@ -25,10 +25,11 @@ export default async function RecentActivityPage() {
                         <div className="space-y-8">
                             {activities.map((item, index) => {
                                 const Icon = actionIcons[item.action] || FileText
-                                const prospectName = item.metadata?.prospect
-                                    ? item.metadata.prospect.first_name && item.metadata.prospect.last_name
-                                        ? `${item.metadata.prospect.first_name} ${item.metadata.prospect.last_name}`
-                                        : item.metadata.prospect.company || 'un prospect'
+                                const meta = item.metadata as any
+                                const prospectName = meta?.prospect
+                                    ? meta.prospect.first_name && meta.prospect.last_name
+                                        ? `${meta.prospect.first_name} ${meta.prospect.last_name}`
+                                        : meta.prospect.company || 'un prospect'
                                     : null
 
                                 // Group by date logic could be added here, but simple list for now
@@ -75,7 +76,7 @@ export default async function RecentActivityPage() {
                                             {prospectName && item.type === 'activity' && (
                                                 <div className="flex items-center gap-2 mt-2">
                                                     <span className="text-xs text-muted-foreground">Concernant :</span>
-                                                    <Link href={`/dashboard/prospects/${item.metadata?.prospect?.id}`} className="text-sm font-medium text-primary hover:underline">
+                                                    <Link href={`/dashboard/prospects/${meta?.prospect?.id}`} className="text-sm font-medium text-primary hover:underline">
                                                         {prospectName}
                                                     </Link>
                                                 </div>

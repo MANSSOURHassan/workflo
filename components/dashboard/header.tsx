@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from '@/lib/actions/auth'
+import { getRecentActivity } from '@/lib/actions/dashboard'
+import { formatDistanceToNow } from 'date-fns'
+import { fr } from 'date-fns/locale'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types/database'
 import { Button } from '@/components/ui/button'
@@ -75,6 +78,20 @@ const pageNames: Record<string, string> = {
 export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
   const pathname = usePathname()
 
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    async function fetchNotifications() {
+      const { data } = await getRecentActivity(5)
+      if (data) {
+        setNotifications(data)
+        setUnreadCount(data.length) // Simplifié pour afficher le nombre d'activités récentes
+      }
+    }
+    fetchNotifications()
+  }, [])
+
   const currentPageName = Object.entries(pageNames)
     .sort((a, b) => b[0].length - a[0].length)
     .find(([path]) => pathname === path || pathname.startsWith(path + '/'))
@@ -113,36 +130,40 @@ export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                3
-              </span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                  {unreadCount}
+                </span>
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
             <DropdownMenuLabel>Notifications</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <div className="max-h-64 overflow-y-auto">
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
-                <span className="font-medium">Nouveau prospect qualifié</span>
-                <span className="text-xs text-muted-foreground">
-                  Jean Martin de TechCorp a été qualifié avec un score de 85
-                </span>
-                <span className="text-xs text-muted-foreground">Il y a 5 minutes</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
-                <span className="font-medium">Campagne terminée</span>
-                <span className="text-xs text-muted-foreground">
-                  La campagne &quot;Lancement Q1&quot; a atteint 45% de taux d&apos;ouverture
-                </span>
-                <span className="text-xs text-muted-foreground">Il y a 1 heure</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
-                <span className="font-medium">Deal gagné</span>
-                <span className="text-xs text-muted-foreground">
-                  Contrat de 25 000 EUR signé avec InnovateSA
-                </span>
-                <span className="text-xs text-muted-foreground">Il y a 3 heures</span>
-              </DropdownMenuItem>
+              {notifications.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  Aucune nouvelle notification
+                </div>
+              ) : (
+                notifications.map((notif) => (
+                  <DropdownMenuItem key={notif.id} className="flex flex-col items-start gap-1 p-3 cursor-default">
+                    <span className="font-medium text-sm">{notif.title}</span>
+                    {notif.description && (
+                      <span className="text-xs text-muted-foreground line-clamp-2">
+                        {notif.description}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground mt-1">
+                      {(() => {
+                         const date = new Date(notif.created_at)
+                         if (isNaN(date.getTime())) return 'Date inconnue'
+                         return formatDistanceToNow(date, { addSuffix: true, locale: fr })
+                      })()}
+                    </span>
+                  </DropdownMenuItem>
+                ))
+              )}
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>

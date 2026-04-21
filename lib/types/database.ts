@@ -386,6 +386,10 @@ export interface Customization {
   logo_url: string | null
   favicon_url: string | null
   company_name: string | null
+  company_address: string | null
+  company_zip: string | null
+  company_city: string | null
+  vat_number: string | null
   sidebar_collapsed: boolean
   dashboard_layout: Record<string, any>
   widget_positions: any[]

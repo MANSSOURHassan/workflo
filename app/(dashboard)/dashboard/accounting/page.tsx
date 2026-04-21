@@ -56,6 +56,7 @@ import {
     updateUrssafStatus,
     deleteUrssafDeclaration
 } from '@/lib/actions/accounting'
+import { getCustomization } from '@/lib/actions/customize'
 import { Expense, Supplier, Invoice, Quote, UrssafDeclaration } from '@/lib/types/database'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -110,6 +111,7 @@ export default function AccountingPage() {
     const [quotes, setQuotes] = useState<Quote[]>([])
     const [suppliers, setSuppliers] = useState<Supplier[]>([])
     const [urssafDeclarations, setUrssafDeclarations] = useState<UrssafDeclaration[]>([])
+    const [customization, setCustomization] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState('bilan')
 
@@ -126,14 +128,15 @@ export default function AccountingPage() {
     async function loadData() {
         setLoading(true)
         try {
-            const [summaryRes, accountsRes, expensesRes, suppliersRes, invoicesRes, quotesRes, urssafRes] = await Promise.all([
+            const [summaryRes, accountsRes, expensesRes, suppliersRes, invoicesRes, quotesRes, urssafRes, customRes] = await Promise.all([
                 getProFinancialSummary(),
                 getAccountingAccounts(),
                 getExpenses(),
                 getSuppliers(),
                 getInvoices(),
                 getQuotes(),
-                getUrssafDeclarations()
+                getUrssafDeclarations(),
+                getCustomization()
             ])
 
             if (summaryRes.data) setProSummary(summaryRes.data)
@@ -143,11 +146,24 @@ export default function AccountingPage() {
             if (invoicesRes.data) setInvoices(invoicesRes.data)
             if (quotesRes.data) setQuotes(quotesRes.data as any)
             if (urssafRes?.data) setUrssafDeclarations(urssafRes.data)
+            if (customRes?.data) setCustomization(customRes.data)
         } catch (error) {
             toast.error('Erreur lors du chargement des données comptables')
         } finally {
             setLoading(false)
         }
+    }
+
+    const handleDownloadInvoice = async (inv: Invoice) => {
+        toast.info('Génération de la facture en cours...')
+        const { data } = await getCustomization()
+        generateInvoicePDF(inv, data || customization)
+    }
+
+    const handleDownloadQuote = async (q: Quote) => {
+        toast.info('Génération du devis en cours...')
+        const { data } = await getCustomization()
+        generateQuotePDF(q, data || customization)
     }
 
     const handleDeleteInvoice = async (id: string) => {
@@ -539,7 +555,7 @@ export default function AccountingPage() {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => generateInvoicePDF(inv)}>
+                                                            <DropdownMenuItem onClick={() => handleDownloadInvoice(inv)}>
                                                                 <Download className="mr-2 h-4 w-4" /> Télécharger PDF
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => generateInvoiceWord(inv)}>
@@ -609,7 +625,7 @@ export default function AccountingPage() {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => generateQuotePDF(q)}>
+                                                            <DropdownMenuItem onClick={() => handleDownloadQuote(q)}>
                                                                 <Download className="mr-2 h-4 w-4" /> Télécharger PDF
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => generateQuoteWord(q)}>

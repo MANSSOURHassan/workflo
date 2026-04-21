@@ -4,7 +4,14 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
+    const errorParam = searchParams.get('error')
+    const errorDescription = searchParams.get('error_description')
     const next = searchParams.get('next') ?? '/dashboard'
+
+    if (errorParam || errorDescription) {
+        console.error('Auth error from provider:', errorParam, errorDescription)
+        return NextResponse.redirect(`${origin}/auth/error?message=${encodeURIComponent(errorDescription || errorParam || 'Une erreur est survenue lors de l\'authentification externe')}`)
+    }
 
     if (code) {
         const supabase = await createClient()

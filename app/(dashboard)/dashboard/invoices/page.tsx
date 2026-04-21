@@ -23,7 +23,8 @@ import {
   Wallet,
   TrendingDown,
   Edit,
-  Clock
+  Clock,
+  Zap
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ import {
   sendInvoiceByEmail,
   sendQuoteByEmail
 } from '@/lib/actions/accounting'
+import { getCustomization } from '@/lib/actions/customize'
 import { Invoice, Quote } from '@/lib/types/database'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -72,6 +74,7 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
+  const [customization, setCustomization] = useState<any>(null)
 
   useEffect(() => {
     loadData()
@@ -80,18 +83,32 @@ export default function InvoicesPage() {
   async function loadData() {
     setLoading(true)
     try {
-      const [invoicesRes, quotesRes] = await Promise.all([
+      const [invoicesRes, quotesRes, customRes] = await Promise.all([
         getInvoices(),
-        getQuotes()
+        getQuotes(),
+        getCustomization()
       ])
 
       if (invoicesRes.data) setInvoices(invoicesRes.data)
       if (quotesRes.data) setQuotes(quotesRes.data as any)
+      if (customRes.data) setCustomization(customRes.data)
     } catch (error) {
       toast.error('Erreur lors du chargement des documents')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDownloadInvoice = async (inv: Invoice) => {
+    toast.info('Génération de la facture en cours...')
+    const { data } = await getCustomization()
+    generateInvoicePDF(inv, data || customization)
+  }
+
+  const handleDownloadQuote = async (q: Quote) => {
+    toast.info('Génération du devis en cours...')
+    const { data } = await getCustomization()
+    generateQuotePDF(q, data || customization)
   }
 
   const handleDeleteInvoice = async (id: string) => {
@@ -174,9 +191,15 @@ export default function InvoicesPage() {
         title="Devis & Factures" 
         description="Gérez vos documents commerciaux, transformez vos devis en factures et suivez vos paiements clients."
       >
-        <div className="flex gap-2">
-          <AddQuoteModal onSuccess={loadData} />
-          <AddInvoiceModal onSuccess={loadData} />
+        <div className="flex flex-col md:flex-row gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => window.location.href='/dashboard/workflow-guide'}>
+                <Zap className="h-4 w-4 text-primary" />
+                Guide Workflow
+            </Button>
+          <div className="flex gap-2">
+            <AddQuoteModal onSuccess={loadData} />
+            <AddInvoiceModal onSuccess={loadData} />
+          </div>
         </div>
       </PageHeader>
 
@@ -272,7 +295,7 @@ export default function InvoicesPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => generateInvoicePDF(inv)}>
+                            <DropdownMenuItem onClick={() => handleDownloadInvoice(inv)}>
                               <Download className="mr-2 h-4 w-4" /> Télécharger PDF
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => generateInvoiceWord(inv)}>
@@ -359,7 +382,7 @@ export default function InvoicesPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => generateQuotePDF(q)}>
+                            <DropdownMenuItem onClick={() => handleDownloadQuote(q)}>
                               <Download className="mr-2 h-4 w-4" /> Télécharger PDF
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => generateQuoteWord(q)}>

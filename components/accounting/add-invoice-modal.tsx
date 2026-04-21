@@ -13,10 +13,19 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Loader2, X, Upload } from 'lucide-react'
+import { Plus, Loader2, X, Upload, Users } from 'lucide-react'
 import Papa from 'papaparse'
 import { createInvoice, updateInvoice } from '@/lib/actions/accounting'
+import { getProspects } from '@/lib/actions/prospects'
+import { Prospect } from '@/lib/types/database'
 import { toast } from 'sonner'
 
 interface InvoiceItem {
@@ -36,6 +45,7 @@ interface AddInvoiceModalProps {
 export function AddInvoiceModal({ onSuccess, invoiceToEdit, trigger }: AddInvoiceModalProps) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [prospects, setProspects] = useState<Prospect[]>([])
     const [items, setItems] = useState<InvoiceItem[]>([
         { id: Math.random().toString(), description: '', quantity: 0, unit_price: 0, tax_rate: 20 }
     ])
@@ -43,6 +53,7 @@ export function AddInvoiceModal({ onSuccess, invoiceToEdit, trigger }: AddInvoic
     const [formData, setFormData] = useState({
         invoice_number: '',
         client_name: '',
+        prospect_id: '',
         issue_date: '',
         due_date: '',
         notes: '',
@@ -52,20 +63,29 @@ export function AddInvoiceModal({ onSuccess, invoiceToEdit, trigger }: AddInvoic
     const isEdit = !!invoiceToEdit
 
     useEffect(() => {
-        if (invoiceToEdit && open) {
-            setFormData({
-                invoice_number: invoiceToEdit.invoice_number || '',
-                client_name: invoiceToEdit.notes?.split('\n')[0]?.replace('Client: ', '') || '',
-                issue_date: invoiceToEdit.issue_date || '',
-                due_date: invoiceToEdit.due_date || '',
-                notes: invoiceToEdit.notes?.split('\n').filter((l: string) => !l.startsWith('Client:') && !l.startsWith('Service:')).join('\n') || invoiceToEdit.notes || '',
-                service_type: invoiceToEdit.notes?.split('\n').find((l: string) => l.startsWith('Service:'))?.replace('Service: ', '') || '',
-            })
-            if (invoiceToEdit.items && Array.isArray(invoiceToEdit.items)) {
-                setItems(invoiceToEdit.items)
+        if (open) {
+            loadProspects()
+            if (invoiceToEdit) {
+                setFormData({
+                    invoice_number: invoiceToEdit.invoice_number || '',
+                    client_name: invoiceToEdit.notes?.split('\n')[0]?.replace('Client: ', '') || '',
+                    prospect_id: invoiceToEdit.prospect_id || '',
+                    issue_date: invoiceToEdit.issue_date || '',
+                    due_date: invoiceToEdit.due_date || '',
+                    notes: invoiceToEdit.notes?.split('\n').filter((l: string) => !l.startsWith('Client:') && !l.startsWith('Service:')).join('\n') || invoiceToEdit.notes || '',
+                    service_type: invoiceToEdit.notes?.split('\n').find((l: string) => l.startsWith('Service:'))?.replace('Service: ', '') || '',
+                })
+                if (invoiceToEdit.items && Array.isArray(invoiceToEdit.items)) {
+                    setItems(invoiceToEdit.items)
+                }
             }
         }
     }, [invoiceToEdit, open])
+
+    async function loadProspects() {
+        const { data } = await getProspects({ limit: 100 })
+        if (data) setProspects(data)
+    }
 
     const addItem = () => {
         setItems([...items, { id: Math.random().toString(), description: '', quantity: 0, unit_price: 0, tax_rate: 20 }])
@@ -120,7 +140,7 @@ export function AddInvoiceModal({ onSuccess, invoiceToEdit, trigger }: AddInvoic
     }
 
     async function handleSubmit() {
-        if (!formData.invoice_number || !formData.client_name || items.some(i => !i.description)) {
+        if (!formData.invoice_number || (!formData.client_name && !formData.prospect_id) || items.some(i => !i.description)) {
             toast.error('Veuillez remplir le numéro de facture, le client et les descriptions d\'articles')
             return
         }
@@ -138,7 +158,7 @@ export function AddInvoiceModal({ onSuccess, invoiceToEdit, trigger }: AddInvoic
 
             const invoicePayload = {
                 invoice_number: formData.invoice_number,
-                prospect_id: null,
+                prospect_id: formData.prospect_id || null,
                 subtotal,
                 tax_rate: items[0].tax_rate,
                 tax_amount: taxTotal,
@@ -165,6 +185,7 @@ export function AddInvoiceModal({ onSuccess, invoiceToEdit, trigger }: AddInvoic
                 setFormData({
                     invoice_number: '',
                     client_name: '',
+                    prospect_id: '',
                     issue_date: '',
                     due_date: '',
                     notes: '',
@@ -209,12 +230,61 @@ export function AddInvoiceModal({ onSuccess, invoiceToEdit, trigger }: AddInvoic
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label className="text-slate-700 font-semibold">Nom du Client</Label>
+                            <Label className="text-slate-700 font-semibold">Nom du Client (manuel)</Label>
                             <Input
                                 placeholder="Ex: Jean Dupont"
                                 value={formData.client_name}
                                 onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
                             />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="grid gap-2">
+                            <Label className="text-slate-700 font-semibold">Ou sélectionner un Client existant</Label>
+                            <Select
+                                value={formData.prospect_id}
+                                onValueChange={(val) => {
+                                    const selected = prospects.find(p => p.id === val)
+                                    setFormData({ 
+                                        ...formData, 
+                                        prospect_id: val,
+                                        client_name: selected ? `${selected.first_name} ${selected.last_name}`.trim() : formData.client_name
+                                    })
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Choisir un client..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {prospects.map(p => (
+                                        <SelectItem key={p.id} value={p.id}>
+                                            {p.first_name} {p.last_name} {p.company ? `(${p.company})` : ''}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            
+                            {formData.prospect_id && prospects.find(p => p.id === formData.prospect_id) && (
+                                <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm animate-in fade-in slide-in-from-top-1">
+                                    {(() => {
+                                        const p = prospects.find(p => p.id === formData.prospect_id)!
+                                        return (
+                                            <div className="space-y-1">
+                                                <div className="font-bold text-blue-900 flex items-center gap-2">
+                                                    <Users className="h-4 w-4" />
+                                                    {p.first_name} {p.last_name}
+                                                </div>
+                                                {p.company && <p className="text-blue-700 font-medium">{p.company}</p>}
+                                                {p.address && <p className="text-blue-600/80 text-xs">{p.address}</p>}
+                                                {(p.zip || p.city) && (
+                                                    <p className="text-blue-600/80 text-xs">{[p.zip, p.city].filter(Boolean).join(' ')}</p>
+                                                )}
+                                            </div>
+                                        )
+                                    })()}
+                                </div>
+                            )}
                         </div>
                     </div>
 

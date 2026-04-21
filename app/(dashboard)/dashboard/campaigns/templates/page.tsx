@@ -31,9 +31,15 @@ import { toast } from "sonner"
 import type { EmailTemplate } from "@/lib/types/database"
 
 export default function EmailTemplatesPage() {
+  const fetcher = async () => {
+    const res = await getEmailTemplates()
+    if (res.error) throw new Error(res.error)
+    return res.data || []
+  }
+
   const { data: templates, isLoading, mutate } = useSWR<EmailTemplate[]>(
     "email-templates",
-    () => getEmailTemplates()
+    fetcher
   )
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -49,7 +55,13 @@ export default function EmailTemplatesPage() {
     setIsSubmitting(true)
     
     try {
-      const result = await createEmailTemplate(formData)
+      const serverFormData = new FormData()
+      serverFormData.append("name", formData.name)
+      serverFormData.append("subject", formData.subject)
+      serverFormData.append("content", formData.content)
+      serverFormData.append("category", formData.category)
+
+      const result = await createEmailTemplate(serverFormData)
       if (result.error) {
         toast.error(result.error)
       } else {
@@ -206,9 +218,9 @@ export default function EmailTemplatesPage() {
                     {template.content}
                   </p>
                 </div>
-                {template.category && (
+                {(template as any).category && (
                   <Badge variant="secondary" className="mt-3">
-                    {template.category}
+                    {(template as any).category}
                   </Badge>
                 )}
               </CardContent>

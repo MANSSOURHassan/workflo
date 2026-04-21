@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidateTag } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import type { Customization, UserSettings } from '@/lib/types/database'
 
 export type ExtendedCustomization = Customization & {
@@ -17,8 +17,8 @@ export async function getCustomization() {
         return { data: null, error: 'Non autorisé' }
     }
 
-    // Fetch both tables in parallel
-    const [customRes, settingsRes] = await Promise.all([
+    // Fetch all tables in parallel
+    const [customRes, settingsRes, profileRes] = await Promise.all([
         supabase
             .from('customizations')
             .select('*')
@@ -28,11 +28,17 @@ export async function getCustomization() {
             .from('user_settings')
             .select('language, timezone')
             .eq('user_id', user.id)
-            .single()
+            .single(),
+        supabase
+            .from('profiles')
+            .select('company, company_name')
+            .eq('id', user.id)
+            .maybeSingle()
     ])
 
     let customization = customRes.data
     let settingsData = settingsRes.data
+    let profileData = profileRes.data
 
     // Create default customization if not exist
     if (!customization && (!customRes.error || customRes.error.code === 'PGRST116')) {
@@ -80,9 +86,20 @@ export async function getCustomization() {
         settingsData = newSettings
     }
 
+    const finalCompanyName = (customization?.company_name && customization.company_name !== 'Mon Entreprise') 
+        ? customization.company_name 
+        : (profileData?.company || profileData?.company_name || customization?.company_name || 'Mon Entreprise')
+
+    const branding = customization?.dashboard_layout?.branding || {}
+
     return {
         data: {
             ...customization,
+            company_name: finalCompanyName,
+            company_address: branding.company_address || '',
+            company_zip: branding.company_zip || '',
+            company_city: branding.company_city || '',
+            vat_number: branding.vat_number || '',
             language: settingsData?.language || 'Français',
             timezone: settingsData?.timezone || 'Europe/Paris (UTC+1)'
         } as ExtendedCustomization,
@@ -109,12 +126,43 @@ export async function updateCustomization(data: Partial<ExtendedCustomization>) 
         ...customizationUpdates
     } = data as any
 
+    // Intercept PDF branding fields and store them in JSON dashboard_layout to avoid schema errors
+    const { 
+        company_address, 
+        company_zip, 
+        company_city, 
+        vat_number, 
+        ...cleanUpdates 
+    } = customizationUpdates
+
+    // If any branding fields are present, merge them into dashboard_layout
+    if (company_address !== undefined || company_zip !== undefined || company_city !== undefined || vat_number !== undefined) {
+        // Fetch current layout to merge
+        const { data: current } = await supabase
+            .from('customizations')
+            .select('dashboard_layout')
+            .eq('user_id', user.id)
+            .single()
+        
+        const currentLayout = current?.dashboard_layout || {}
+        cleanUpdates.dashboard_layout = {
+            ...currentLayout,
+            branding: {
+                ...(currentLayout.branding || {}),
+                ...(company_address !== undefined && { company_address }),
+                ...(company_zip !== undefined && { company_zip }),
+                ...(company_city !== undefined && { company_city }),
+                ...(vat_number !== undefined && { vat_number }),
+            }
+        }
+    }
+
     // Update customizations
-    if (Object.keys(customizationUpdates).length > 0) {
+    if (Object.keys(cleanUpdates).length > 0) {
         const { error: customError } = await supabase
             .from('customizations')
             .update({
-                ...customizationUpdates,
+                ...cleanUpdates,
                 updated_at: new Date().toISOString()
             })
             .eq('user_id', user.id)
@@ -147,5 +195,6 @@ export async function updateCustomization(data: Partial<ExtendedCustomization>) 
     }
 
     revalidateTag('customization')
+    revalidatePath('/dashboard', 'layout')
     return { success: true }
 }

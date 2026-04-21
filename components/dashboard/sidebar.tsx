@@ -49,6 +49,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetTrigger 
+} from "@/components/ui/sheet"
+import { HelpCenter } from "./help-center"
 import { signOut } from '@/lib/actions/auth'
 
 interface DashboardSidebarProps {
@@ -185,6 +191,28 @@ export function DashboardSidebar({ user, profile, customization }: DashboardSide
                 className="h-[66px] w-[66px] object-contain"
               />
             </Link>
+          </div>
+
+          {/* Balanced Help Button */}
+          <div className="py-2 flex flex-col items-center border-b border-border bg-primary/5">
+            <Sheet>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SheetTrigger asChild>
+                    <button
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md hover:scale-105 transition-all outline-none"
+                    >
+                      <HelpCircle className="h-4.5 w-4.5" />
+                    </button>
+                  </SheetTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="font-bold">
+                  GUIDE COMPLET [?]
+                </TooltipContent>
+              </Tooltip>
+              <HelpCenter />
+            </Sheet>
+            <span className="text-[9px] font-bold text-primary mt-1.5 tracking-widest uppercase">Guide</span>
           </div>
 
           {/* Main Nav Icons */}

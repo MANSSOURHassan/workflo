@@ -26,7 +26,8 @@ import {
   Moon,
   Check,
   Loader2,
-  Save
+  Save,
+  FileText
 } from 'lucide-react'
 import { getCustomization, updateCustomization } from '@/lib/actions/customize'
 import { createClient } from '@/lib/supabase/client'
@@ -68,6 +69,10 @@ export default function CustomizePage() {
   const [saving, setSaving] = useState(false)
   const [customization, setCustomization] = useState<Partial<ExtendedCustomization>>({
     company_name: '',
+    company_address: '',
+    company_zip: '',
+    company_city: '',
+    vat_number: '',
     email_signature: '',
     primary_color: '#4F46E5',
     theme: 'system',
@@ -224,13 +229,58 @@ export default function CustomizePage() {
                   </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="company-name">Nom de l'entreprise</Label>
-                <Input
-                  id="company-name"
-                  value={customization.company_name || ''}
-                  onChange={(e) => updateField('company_name', e.target.value)}
-                />
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Informations pour Devis & Factures
+                </h3>
+                <div className="space-y-2">
+                  <Label htmlFor="company-name">Nom de l'entreprise (Emetteur)</Label>
+                  <Input
+                    id="company-name"
+                    placeholder="Ex: MAMISOUR"
+                    value={customization.company_name || ''}
+                    onChange={(e) => updateField('company_name', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company-address">Adresse du siège</Label>
+                  <Input
+                    id="company-address"
+                    placeholder="123 rue de la Paix"
+                    value={customization.company_address || ''}
+                    onChange={(e) => updateField('company_address', e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="company-zip">Code Postal</Label>
+                    <Input
+                      id="company-zip"
+                      placeholder="75000"
+                      value={customization.company_zip || ''}
+                      onChange={(e) => updateField('company_zip', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="company-city">Ville</Label>
+                    <Input
+                      id="company-city"
+                      placeholder="Paris"
+                      value={customization.company_city || ''}
+                      onChange={(e) => updateField('company_city', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vat-number">Numéro de TVA (facultatif)</Label>
+                  <Input
+                    id="vat-number"
+                    placeholder="FR 00 123456789"
+                    value={customization.vat_number || ''}
+                    onChange={(e) => updateField('vat_number', e.target.value)}
+                  />
+                </div>
               </div>
             </div>
             <div className="space-y-4">

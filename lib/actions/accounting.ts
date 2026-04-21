@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidateTag } from 'next/cache'
 import { Supplier, Expense, Invoice, Quote, UrssafDeclaration } from '@/lib/types/database'
+import { logAuditAction } from '@/lib/security/audit'
+import { getDefaultPipeline, createDeal } from './pipeline'
 
 // --- SUPPLIERS ---
 
@@ -175,7 +177,7 @@ export async function getInvoices() {
 
     const { data, error } = await supabase
         .from('invoices')
-        .select('*, prospect:prospects(id, first_name, last_name, company, email)')
+        .select('*, prospect:prospects(id, first_name, last_name, company, email, address, city, country)')
         .eq('user_id', user.id)
         .order('issue_date', { ascending: false })
 
@@ -194,8 +196,73 @@ export async function createInvoice(invoice: Partial<Invoice>) {
         .select()
         .single()
 
-    if (!error) revalidateTag('accounting', 'max')
-    return { data: data as Invoice, error: error?.message }
+    if (error) {
+        console.error('Erreur Supabase (Facture):', error)
+        return { error: `Erreur base de données: ${error.message} (${error.code})` }
+    }
+
+    // Log audit (Technical)
+    await logAuditAction({
+        action: 'invoice.create',
+        entityType: 'invoice',
+        entityId: data.id,
+        newData: data,
+        supabaseClient: supabase,
+        userObj: user
+    })
+
+    // Log activity (Business - for the Workflow/Feed)
+    await supabase.from('activities').insert({
+        user_id: user.id,
+        prospect_id: invoice.prospect_id || null,
+        type: 'note',
+        title: `Facture créée: ${invoice.invoice_number}`,
+        description: `Montant total: ${invoice.total} ${invoice.currency || 'EUR'}`
+    })
+
+    // --- AUTOMATION: Mark Deal as Won if possible ---
+    try {
+        if (invoice.prospect_id) {
+            // Find the most recent open deal for this prospect
+            const { data: deals } = await supabase
+                .from('deals')
+                .select('id, pipeline_id')
+                .eq('prospect_id', invoice.prospect_id)
+                .eq('status', 'open')
+                .order('created_at', { ascending: false })
+                .limit(1)
+
+            if (deals && deals.length > 0) {
+                const deal = deals[0]
+                // Find 'Gagné' stage for this pipeline
+                const { data: pipeline } = await supabase
+                    .from('pipelines')
+                    .select('*, stages:pipeline_stages(*)')
+                    .eq('id', deal.pipeline_id)
+                    .single()
+
+                if (pipeline && pipeline.stages) {
+                    const wonStage = (pipeline.stages as any[]).find(s => s.name.toLowerCase().includes('gagn'))
+                    if (wonStage) {
+                        // Update deal status and stage
+                        await supabase
+                            .from('deals')
+                            .update({ 
+                                status: 'won', 
+                                stage_id: wonStage.id,
+                                actual_close_date: new Date().toISOString().split('T')[0]
+                            })
+                            .eq('id', deal.id)
+                    }
+                }
+            }
+        }
+    } catch (automationError) {
+        console.warn('Automation Won Deal failed:', automationError)
+    }
+
+    revalidateTag('accounting')
+    return { data: data as Invoice }
 }
 
 export async function updateInvoice(id: string, invoice: Partial<Invoice>) {
@@ -258,7 +325,7 @@ export async function getQuotes() {
 
     const { data, error } = await supabase
         .from('quotes')
-        .select('*, prospect:prospects(id, first_name, last_name, company, email)')
+        .select('*, prospect:prospects(id, first_name, last_name, company, email, address, city, country)')
         .eq('user_id', user.id)
         .order('issue_date', { ascending: false })
 
@@ -277,8 +344,54 @@ export async function createQuote(quote: Partial<Quote>) {
         .select()
         .single()
 
-    if (!error) revalidateTag('accounting', 'max')
-    return { data: data as Quote, error: error?.message }
+    if (error) {
+        console.error('Erreur Supabase (Devis):', error)
+        return { error: `Erreur base de données: ${error.message} (${error.code})` }
+    }
+
+    // Log audit (Technical)
+    await logAuditAction({
+        action: 'quote.create',
+        entityType: 'quote',
+        entityId: data.id,
+        newData: data,
+        supabaseClient: supabase,
+        userObj: user
+    })
+
+    // Log activity (Business - for the Workflow/Feed)
+    await supabase.from('activities').insert({
+        user_id: user.id,
+        prospect_id: quote.prospect_id || null,
+        type: 'note',
+        title: `Devis créé: ${quote.quote_number}`,
+        description: `Montant total: ${quote.total} ${quote.currency || 'EUR'}`
+    })
+
+    // --- AUTOMATION: Create a Deal in the Pipeline ---
+    try {
+        const { data: pipeline } = await getDefaultPipeline()
+        if (pipeline && pipeline.stages) {
+            // Find 'Proposition' stage or use the 4th/any
+            const targetStage = pipeline.stages.find(s => s.name.toLowerCase().includes('propos')) || pipeline.stages[0]
+            
+            await createDeal({
+                pipeline_id: pipeline.id,
+                stage_id: targetStage.id,
+                prospect_id: quote.prospect_id || null,
+                title: `Opportunité: ${quote.client_name || 'Nouveau Devis'} (${quote.quote_number})`,
+                value: quote.total || 0,
+                currency: quote.currency || 'EUR',
+                notes: `Généré automatiquement par le devis n°${quote.quote_number}.`
+            })
+        }
+    } catch (automationError) {
+        console.warn('Automation Deal creation failed:', automationError)
+        // We don't block the quote creation if automation fails
+    }
+
+    revalidateTag('accounting')
+    return { data: data as Quote }
 }
 
 export async function updateQuote(id: string, quote: Partial<Quote>) {

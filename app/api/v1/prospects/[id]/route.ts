@@ -4,9 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 // GET /api/v1/prospects/[id] - Get a specific prospect
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await context.params;
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
@@ -17,7 +18,7 @@ export async function GET(
         const { data, error } = await supabase
             .from('prospects')
             .select('*')
-            .eq('id', params.id)
+            .eq('id', id)
             .eq('user_id', user.id)
             .single()
 
@@ -34,9 +35,10 @@ export async function GET(
 // PUT /api/v1/prospects/[id] - Update a prospect
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await context.params;
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
@@ -65,7 +67,7 @@ export async function PUT(
         const { data, error } = await supabase
             .from('prospects')
             .update(updates)
-            .eq('id', params.id)
+            .eq('id', id)
             .eq('user_id', user.id)
             .select()
             .single()
@@ -87,9 +89,10 @@ export async function PUT(
 // DELETE /api/v1/prospects/[id] - Delete a prospect
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await context.params;
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
@@ -100,7 +103,7 @@ export async function DELETE(
         const { error } = await supabase
             .from('prospects')
             .delete()
-            .eq('id', params.id)
+            .eq('id', id)
             .eq('user_id', user.id)
 
         if (error) {

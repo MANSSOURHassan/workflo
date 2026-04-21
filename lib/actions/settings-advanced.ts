@@ -51,7 +51,7 @@ export async function createApiKey(name: string) {
 
     if (error) return { error: error.message }
 
-    revalidateTag('api-keys')
+    revalidateTag('api-keys', 'max')
     return { data }
 }
 
@@ -69,7 +69,7 @@ export async function deleteApiKey(id: string) {
 
     if (error) return { error: error.message }
 
-    revalidateTag('api-keys')
+    revalidateTag('api-keys', 'max')
     return { success: true }
 }
 
@@ -119,7 +119,7 @@ export async function createWebhook(data: { name: string, url: string, events: s
 
     if (error) return { error: error.message }
 
-    revalidateTag('webhooks')
+    revalidateTag('webhooks', 'max')
     return { data: webhook }
 }
 
@@ -137,7 +137,7 @@ export async function deleteWebhook(id: string) {
 
     if (error) return { error: error.message }
 
-    revalidateTag('webhooks')
+    revalidateTag('webhooks', 'max')
     return { success: true }
 }
 
@@ -155,6 +155,6 @@ export async function toggleWebhook(id: string, isActive: boolean) {
 
     if (error) return { error: error.message }
 
-    revalidateTag('webhooks')
+    revalidateTag('webhooks', 'max')
     return { success: true }
 }

@@ -21,7 +21,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Loader2, X, Upload } from 'lucide-react'
+import { Plus, Loader2, X, Upload, Users } from 'lucide-react'
 import Papa from 'papaparse'
 import { createQuote, updateQuote } from '@/lib/actions/accounting'
 import { getProspects } from '@/lib/actions/prospects'
@@ -235,7 +235,14 @@ export function AddQuoteModal({ onSuccess, quoteToEdit, trigger }: AddQuoteModal
                             <Label className="text-slate-700 font-semibold">Ou sélectionner un Client existant</Label>
                             <Select
                                 value={formData.prospect_id}
-                                onValueChange={(val) => setFormData({ ...formData, prospect_id: val })}
+                                onValueChange={(val) => {
+                                    const selected = prospects.find(p => p.id === val)
+                                    setFormData({ 
+                                        ...formData, 
+                                        prospect_id: val,
+                                        client_name: selected ? `${selected.first_name} ${selected.last_name}`.trim() : formData.client_name
+                                    })
+                                }}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Choisir un client..." />
@@ -248,6 +255,27 @@ export function AddQuoteModal({ onSuccess, quoteToEdit, trigger }: AddQuoteModal
                                     ))}
                                 </SelectContent>
                             </Select>
+                            
+                            {formData.prospect_id && prospects.find(p => p.id === formData.prospect_id) && (
+                                <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm animate-in fade-in slide-in-from-top-1">
+                                    {(() => {
+                                        const p = prospects.find(p => p.id === formData.prospect_id)!
+                                        return (
+                                            <div className="space-y-1">
+                                                <div className="font-bold text-blue-900 flex items-center gap-2">
+                                                    <Users className="h-4 w-4" />
+                                                    {p.first_name} {p.last_name}
+                                                </div>
+                                                {p.company && <p className="text-blue-700 font-medium">{p.company}</p>}
+                                                {p.address && <p className="text-blue-600/80 text-xs">{p.address}</p>}
+                                                {(p.zip || p.city) && (
+                                                    <p className="text-blue-600/80 text-xs">{[p.zip, p.city].filter(Boolean).join(' ')}</p>
+                                                )}
+                                            </div>
+                                        )
+                                    })()}
+                                </div>
+                            )}
                         </div>
                         <div className="grid gap-2">
                             <Label className="text-slate-700 font-semibold">Date du devis</Label>

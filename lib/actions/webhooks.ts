@@ -82,7 +82,7 @@ export async function createWebhook(formData: FormData) {
         return { error: error.message }
     }
 
-    revalidateTag('webhooks')
+    revalidateTag('webhooks', 'max')
     return { data }
 }
 
@@ -117,7 +117,7 @@ export async function updateWebhook(id: string, formData: FormData) {
         return { error: error.message }
     }
 
-    revalidateTag('webhooks')
+    revalidateTag('webhooks', 'max')
     return { data }
 }
 
@@ -140,7 +140,7 @@ export async function deleteWebhook(id: string) {
         return { error: error.message }
     }
 
-    revalidateTag('webhooks')
+    revalidateTag('webhooks', 'max')
     return { success: true }
 }
 
@@ -233,6 +233,6 @@ export async function regenerateWebhookSecret(id: string) {
         return { error: error.message }
     }
 
-    revalidateTag('webhooks')
+    revalidateTag('webhooks', 'max')
     return { data }
 }

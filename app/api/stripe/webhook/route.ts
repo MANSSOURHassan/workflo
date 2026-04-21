@@ -39,7 +39,7 @@ export async function POST(req: Request) {
                     const customerId = session.customer as string
                     
                     // Fetch full subscription details from Stripe
-                    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+                    const subscription: any = await stripe.subscriptions.retrieve(subscriptionId)
                     
                     // Get the supabase user id from Stripe customer metadata
                     const customer = await stripe.customers.retrieve(customerId) as any

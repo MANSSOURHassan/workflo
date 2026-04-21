@@ -173,17 +173,17 @@ export function CampaignsList({ campaigns, isLoading, onCampaignUpdated }: Campa
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Users className="h-4 w-4 text-muted-foreground" />
-                      {campaign.total_recipients || 0}
+                      {(campaign as any).total_recipients || 0}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    {campaign.total_recipients && campaign.total_recipients > 0
-                      ? `${Math.round((campaign.opened_count || 0) / campaign.total_recipients * 100)}%`
+                    {(campaign as any).total_recipients && (campaign as any).total_recipients > 0
+                      ? `${Math.round(((campaign as any).opened_count || 0) / (campaign as any).total_recipients * 100)}%`
                       : "-"}
                   </TableCell>
                   <TableCell className="text-right">
-                    {campaign.total_recipients && campaign.total_recipients > 0
-                      ? `${Math.round((campaign.clicked_count || 0) / campaign.total_recipients * 100)}%`
+                    {(campaign as any).total_recipients && (campaign as any).total_recipients > 0
+                      ? `${Math.round(((campaign as any).clicked_count || 0) / (campaign as any).total_recipients * 100)}%`
                       : "-"}
                   </TableCell>
                   <TableCell>

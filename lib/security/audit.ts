@@ -4,6 +4,8 @@ import { headers } from 'next/headers'
 export type AuditAction = 
   | 'prospect.create' | 'prospect.update' | 'prospect.delete' | 'prospect.delete_bulk' | 'prospect.export' | 'prospect.import'
   | 'deal.create' | 'deal.update' | 'deal.delete'
+  | 'invoice.create' | 'invoice.update' | 'invoice.delete'
+  | 'quote.create' | 'quote.update' | 'quote.delete'
   | 'pipeline.create' | 'pipeline.update' | 'pipeline.delete'
   | 'campaign.create' | 'campaign.update' | 'campaign.delete' | 'campaign.send'
   | 'settings.update' | 'profile.update' | 'auth.password_change'
