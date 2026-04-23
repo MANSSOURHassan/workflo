@@ -160,10 +160,17 @@ export async function updatePassword(formData: FormData) {
 
 export async function signInWithGoogle() {
   const supabase = await createClient()
+  let siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 
+    (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'http://localhost:3000');
+    
+  if (siteUrl.endsWith('/')) {
+    siteUrl = siteUrl.slice(0, -1);
+  }
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      redirectTo: `${siteUrl}/auth/callback`,
     },
   })
 
