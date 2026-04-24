@@ -29,10 +29,12 @@ import {
 } from 'lucide-react'
 import { GlobalSearch } from './global-search'
 import { ModeToggle } from '@/components/mode-toggle'
+import { MobileSidebar } from './mobile-sidebar'
 
 interface DashboardHeaderProps {
   user: User
   profile: Profile | null
+  customization?: any
 }
 
 const pageNames: Record<string, string> = {
@@ -75,7 +77,7 @@ const pageNames: Record<string, string> = {
   '/dashboard/debug': 'Diagnostic',
 }
 
-export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
+export function DashboardHeader({ user, profile, customization }: DashboardHeaderProps) {
   const pathname = usePathname()
 
   const [notifications, setNotifications] = useState<any[]>([])
@@ -98,9 +100,10 @@ export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
     ?.[1] || 'Tableau de bord'
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-card px-6">
+    <header className="flex h-16 items-center justify-between border-b bg-card px-4 md:px-6">
       {/* Page Title & Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
+        <MobileSidebar customization={customization} />
         <Link 
           href="/dashboard" 
           className="text-muted-foreground hover:text-primary transition-colors font-medium"
@@ -110,7 +113,9 @@ export function DashboardHeader({ user, profile }: DashboardHeaderProps) {
         {pathname !== '/dashboard' && (
           <>
             <span className="text-muted-foreground/50">/</span>
-            <h1 className="font-semibold text-foreground">{currentPageName}</h1>
+            <h1 className="font-semibold text-foreground truncate max-w-[120px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-none">
+              {currentPageName}
+            </h1>
           </>
         )}
       </div>

@@ -108,7 +108,7 @@ export function ProspectsFilters({ currentFilters }: ProspectsFiltersProps) {
         value={currentFilters.status || 'all'}
         onValueChange={(value) => updateFilters('status', value)}
       >
-        <SelectTrigger className="w-40">
+        <SelectTrigger className="w-full sm:w-40">
           <SelectValue placeholder="Statut" />
         </SelectTrigger>
         <SelectContent>
@@ -125,7 +125,7 @@ export function ProspectsFilters({ currentFilters }: ProspectsFiltersProps) {
         value={currentFilters.source || 'all'}
         onValueChange={(value) => updateFilters('source', value)}
       >
-        <SelectTrigger className="w-44">
+        <SelectTrigger className="w-full sm:w-44">
           <SelectValue placeholder="Source" />
         </SelectTrigger>
         <SelectContent>

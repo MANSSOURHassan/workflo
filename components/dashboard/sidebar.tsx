@@ -63,13 +63,13 @@ interface DashboardSidebarProps {
   customization: Customization | null
 }
 
-interface NavItem {
+export interface NavItem {
   name: string
   href: string
   icon: React.ElementType
 }
 
-interface NavSection {
+export interface NavSection {
   name: string
   icon: React.ElementType
   color: string
@@ -77,7 +77,7 @@ interface NavSection {
   items: NavItem[]
 }
 
-const navSections: NavSection[] = [
+export const navSections: NavSection[] = [
   {
     name: 'CRM',
     icon: Users,
@@ -150,7 +150,7 @@ const navSections: NavSection[] = [
   },
 ]
 
-const bottomNavItems = [
+export const bottomNavItems = [
   { name: 'Équipe', href: '/dashboard/team', icon: UsersRound },
   { name: 'Facturation', href: '/dashboard/billing', icon: CreditCard },
   { name: 'Connexions', href: '/dashboard/integrations', icon: Link2 },
@@ -193,26 +193,26 @@ export function DashboardSidebar({ user, profile, customization }: DashboardSide
             </Link>
           </div>
 
-          {/* Balanced Help Button */}
-          <div className="py-2 flex flex-col items-center border-b border-border bg-primary/5">
+          {/* Minimal Help Button */}
+          <div className="py-1.5 flex flex-col items-center border-b border-border bg-primary/5">
             <Sheet>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <SheetTrigger asChild>
                     <button
-                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md hover:scale-105 transition-all outline-none"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm hover:scale-105 transition-all outline-none"
                     >
-                      <HelpCircle className="h-4.5 w-4.5" />
+                      <HelpCircle className="h-3 w-3" />
                     </button>
                   </SheetTrigger>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="font-bold">
-                  GUIDE COMPLET [?]
+                  Guide complet Workflow
                 </TooltipContent>
               </Tooltip>
               <HelpCenter />
             </Sheet>
-            <span className="text-[9px] font-bold text-primary mt-1.5 tracking-widest uppercase">Guide</span>
+            <span className="text-[7px] font-bold text-primary mt-1 tracking-widest uppercase">Guide</span>
           </div>
 
           {/* Main Nav Icons */}
