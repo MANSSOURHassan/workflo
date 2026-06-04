@@ -194,7 +194,7 @@ export async function updateCustomization(data: Partial<ExtendedCustomization>) 
         }
     }
 
-    revalidateTag('customization')
+    revalidateTag('customization', 'max')
     revalidatePath('/dashboard', 'layout')
     return { success: true }
 }

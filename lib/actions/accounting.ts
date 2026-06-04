@@ -261,7 +261,7 @@ export async function createInvoice(invoice: Partial<Invoice>) {
         console.warn('Automation Won Deal failed:', automationError)
     }
 
-    revalidateTag('accounting')
+    revalidateTag('accounting', 'max')
     return { data: data as Invoice }
 }
 
@@ -375,11 +375,26 @@ export async function createQuote(quote: Partial<Quote>) {
             // Find 'Proposition' stage or use the 4th/any
             const targetStage = pipeline.stages.find(s => s.name.toLowerCase().includes('propos')) || pipeline.stages[0]
             
+            let clientName = 'Nouveau Devis'
+            if (quote.notes && quote.notes.includes('Client: ')) {
+                const match = quote.notes.match(/Client: (.*)/)
+                if (match) clientName = match[1].trim()
+            } else if (quote.prospect_id) {
+                const { data: prospect } = await supabase
+                    .from('prospects')
+                    .select('first_name, last_name, company')
+                    .eq('id', quote.prospect_id)
+                    .single()
+                if (prospect) {
+                    clientName = `${prospect.first_name || ''} ${prospect.last_name || ''}`.trim() || prospect.company || 'Nouveau Devis'
+                }
+            }
+
             await createDeal({
                 pipeline_id: pipeline.id,
                 stage_id: targetStage.id,
                 prospect_id: quote.prospect_id || null,
-                title: `Opportunité: ${quote.client_name || 'Nouveau Devis'} (${quote.quote_number})`,
+                title: `Opportunité: ${clientName} (${quote.quote_number})`,
                 value: quote.total || 0,
                 currency: quote.currency || 'EUR',
                 notes: `Généré automatiquement par le devis n°${quote.quote_number}.`
@@ -390,7 +405,7 @@ export async function createQuote(quote: Partial<Quote>) {
         // We don't block the quote creation if automation fails
     }
 
-    revalidateTag('accounting')
+    revalidateTag('accounting', 'max')
     return { data: data as Quote }
 }
 

@@ -36,6 +36,7 @@ export interface Prospect {
   address: string | null
   city: string | null
   country: string | null
+  zip?: string | null
   status: ProspectStatus
   source: ProspectSource
   ai_score: number | null
